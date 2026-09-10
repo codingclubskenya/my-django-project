@@ -29,12 +29,15 @@ server {
     # Client upload size (for file uploads via admin/mobile)
     client_max_body_size 50M;
 
-    # React frontend static files
-    root /home/personal/personalweb/frontend-apk-web;
-    index index.html;
+    # React frontend served at /schoolsystem/
+    location /schoolsystem/ {
+        alias /home/personal/personalweb/frontend-apk-web/;
+        try_files $uri $uri/ /schoolsystem/index.html;
+    }
 
-    location / {
-        try_files $uri $uri/ /index.html;
+    # Redirect root to /schoolsystem/
+    location = / {
+        return 301 /schoolsystem/;
     }
 
     # Django API
