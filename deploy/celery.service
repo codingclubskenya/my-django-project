@@ -3,12 +3,12 @@ Description=celery worker for School Management System
 After=network.target
 
 [Service]
-User=school
-Group=school
-WorkingDirectory=/var/www/school_backend
+User=devops
+Group=devops
+WorkingDirectory=/home/personal/personalweb/epk/backend
 Environment="DJANGO_SETTINGS_MODULE=core.settings_production"
-EnvironmentFile=/var/www/school_backend/.env
-ExecStart=/var/www/school_backend/venv/bin/celery -A core worker -l info
+EnvironmentFile=/home/personal/personalweb/epk/.env
+ExecStart=/home/personal/personalweb/epk/venv/bin/celery -A core worker -l info
 Restart=always
 RestartSec=3
 

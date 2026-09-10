@@ -70,10 +70,10 @@ $SUDO chown -R devops:devops "${PROJECT_DIR}"
 # If this is a fresh deploy, clone from git
 if [ ! -d "${PROJECT_DIR}/backend" ]; then
     echo "Cloning repository..."
-    git clone https://github.com/YOUR_USERNAME/school-management.git "${PROJECT_DIR}/tmp_clone"
-    cp -r "${PROJECT_DIR}/tmp_clone/backend" "${PROJECT_DIR}/backend"
-    cp -r "${PROJECT_DIR}/tmp_clone/frontend/codingclubskenya" "${PROJECT_DIR}/frontend_app"
-    rm -rf "${PROJECT_DIR}/tmp_clone"
+    $SUDO git clone https://github.com/YOUR_USERNAME/school-management.git "${PROJECT_DIR}/tmp_clone"
+    $SUDO cp -r "${PROJECT_DIR}/tmp_clone/backend" "${PROJECT_DIR}/backend"
+    $SUDO cp -r "${PROJECT_DIR}/tmp_clone/frontend/codingclubskenya" "${PROJECT_DIR}/frontend_app"
+    $SUDO rm -rf "${PROJECT_DIR}/tmp_clone"
 fi
 
 # ---- 4. Python virtual environment ----
@@ -139,15 +139,15 @@ $SUDO cp "${PROJECT_DIR}/deploy/celery-beat.service" /etc/systemd/system/celery-
 # Update paths in service files
 $SUDO sed -i "s|/var/www/school_backend|${PROJECT_DIR}|g" /etc/systemd/system/gunicorn.service
 $SUDO sed -i "s|/var/www/school_backend|${PROJECT_DIR}|g" /etc/systemd/system/celery.service
-$SUDO sed -i "s|/var/www/school_backend|${PROJECT_DIR}|g" /etc/systemd/system/celery-beat.service
+  $SUDO sed -i "s|/var/www/school_backend|${PROJECT_DIR}|g" /etc/systemd/system/celery-beat.service
 
-# Update user in service files (use devops user instead of $USER)
+# Update user in service files (use devops user)
 $SUDO sed -i "s|User=school|User=devops|g" /etc/systemd/system/gunicorn.service
 $SUDO sed -i "s|Group=school|Group=devops|g" /etc/systemd/system/gunicorn.service
-$SUDO sed -i "s|User=school|User=devops|g" /etc/systemd/system/celery.service
-$SUDO sed -i "s|Group=school|Group=devops|g" /etc/systemd/system/celery.service
-$SUDO sed -i "s|User=school|User=devops|g" /etc/systemd/system/celery-beat.service
-$SUDO sed -i "s|Group=school|Group=devops|g" /etc/systemd/system/celery-beat.service
+$SUDO sed -i "s|User=devops|User=devops|g" /etc/systemd/system/celery.service
+$SUDO sed -i "s|Group=devops|Group=devops|g" /etc/systemd/system/celery.service
+$SUDO sed -i "s|User=devops|User=devops|g" /etc/systemd/system/celery-beat.service
+$SUDO sed -i "s|Group=devops|Group=devops|g" /etc/systemd/system/celery-beat.service
 
 $SUDO systemctl daemon-reload
 $SUDO systemctl enable gunicorn celery celery-beat
