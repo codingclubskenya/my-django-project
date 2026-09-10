@@ -2,98 +2,98 @@
 set -e
 
 # ==============================================================================
-# Quick update script - run this for minor code updates
-# Usage: ./deploy/update.sh [domain]
-#
-# Auto-detects project directory based on script location.
-# Works for both sudo and non-sudo environments.
+# Update script for School Management System
+# Run on server (devops@vmi3555221) from any directory:
+#   bash ~/home/personal/personalweb/epk/deploy/update.sh codingclubskenya.com
 # ==============================================================================
 
-# Auto-detect project directory based on script location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
-VENV_DIR="${PROJECT_DIR}/venv"
-FRONTEND_SRC_DIR="${PROJECT_DIR}/frontend_app"
-FRONTEND_OUT_DIR="${PROJECT_DIR}/../frontend-apk-web"
 DOMAIN=${1:-codingclubskenya.com}
 
-# Ensure frontend directories exist
-mkdir -p "${FRONTEND_OUT_DIR}"
+# Auto-detect paths based on script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+BACKEND_DIR="${PROJECT_DIR}/backend"
+FRONTEND_SRC="${PROJECT_DIR}/../frontend-apk-web/codingclubskenya"
+FRONTEND_OUT="${PROJECT_DIR}/../frontend-apk-web"
+VENV_DIR="${PROJECT_DIR}/venv"
 
-# Determine if we can use sudo for service restarts
+# Determine if we can use sudo
 if [ "${EUID}" -eq 0 ]; then
   SUDO=""
 elif sudo -n true 2>/dev/null; then
   SUDO="sudo"
 else
   SUDO=""
-  echo "WARNING: sudo not available. Service restarts will be skipped."
+  echo "WARNING: sudo not available. Service restarts will be manual."
 fi
 
 echo "========================================"
 echo "Updating School Management System"
 echo "========================================"
 echo "Project: ${PROJECT_DIR}"
-echo "Domain:  ${DOMAIN}"
-echo "Sudo:    ${SUDO:-none}"
+echo "Backend: ${BACKEND_DIR}"
+echo "Frontend src: ${FRONTEND_SRC}"
+echo "Frontend out: ${FRONTEND_OUT}"
+echo "Domain: ${DOMAIN}"
 echo ""
 
-# ---- 1. Update backend code ----
-echo "[1/6] Pulling latest code..."
-cd "${PROJECT_DIR}/backend"
+# ---- 1. Pull backend code ----
+echo "[1/6] Pulling backend changes..."
+cd "${BACKEND_DIR}"
 git pull origin master
 
-# ---- 2. Install/update Python dependencies ----
-echo "[2/6] Installing dependencies..."
+# ---- 2. Install/update Python packages ----
+echo "[2/6] Installing Python dependencies..."
 source "${VENV_DIR}/bin/activate"
 pip install -r requirements.txt
 
 # ---- 3. Django migrations ----
-echo "[3/6] Running migrations..."
+echo "[3/6] Running Django migrations..."
 python manage.py migrate --settings=core.settings_production
 python manage.py collectstatic --noinput --settings=core.settings_production
 
-# ---- 4. Build frontend ----
-echo "[4/6] Building frontend..."
-cd "${FRONTEND_SRC_DIR}"
+# ---- 4. Pull and build frontend ----
+echo "[4/6] Pulling frontend changes..."
+cd "${FRONTEND_SRC}"
+git pull origin master
+
+echo "[5/6] Building frontend..."
 VITE_API_URL="https://${DOMAIN}" npm ci 2>/dev/null || VITE_API_URL="https://${DOMAIN}" npm install
 VITE_API_URL="https://${DOMAIN}" npm run build
 
-# ---- 5. Deploy frontend ----
-echo "[5/6] Deploying frontend..."
-mkdir -p "${FRONTEND_OUT_DIR}"
-cp -r dist/* "${FRONTEND_OUT_DIR}/"
+# ---- 5. Deploy frontend build ----
+echo "[6/6] Deploying frontend files..."
+mkdir -p "${FRONTEND_OUT}"
+cp -r dist/* "${FRONTEND_OUT}/"
+echo "  Copied dist/* to ${FRONTEND_OUT}/"
 
 # ---- 6. Restart services ----
-echo "[6/6] Restarting services..."
-SERVICES_RESTARTED=false
-
+echo ""
 if [ -n "${SUDO}" ]; then
-  $SUDO systemctl restart gunicorn 2>/dev/null && SERVICES_RESTARTED=true && echo "  gunicorn: restarted"
-  $SUDO systemctl restart celery 2>/dev/null && echo "  celery: restarted"
-  $SUDO systemctl restart celery-beat 2>/dev/null && echo "  celery-beat: restarted"
-  $SUDO systemctl reload nginx 2>/dev/null && echo "  nginx: reloaded"
+  echo "Restarting services with sudo..."
+  $SUDO systemctl restart gunicorn 2>/dev/null && echo "  gunicorn: OK"
+  $SUDO systemctl restart celery 2>/dev/null && echo "  celery: OK"
+  $SUDO systemctl reload nginx 2>/dev/null && echo "  nginx: OK"
 else
-  echo "  No sudo access - restarting gunicorn directly..."
+  echo "No sudo - restarting gunicorn directly..."
   pkill -f "gunicorn.*core.wsgi" 2>/dev/null || true
   sleep 1
-  cd "${PROJECT_DIR}/backend"
+  cd "${BACKEND_DIR}"
   source "${VENV_DIR}/bin/activate"
-  gunicorn --config "${PROJECT_DIR}/gunicorn.conf.py" core.wsgi:application &
-  SERVICES_RESTARTED=true
-  echo "  gunicorn: started (PID in background)"
-  echo "  NOTE: Use startup.sh for full service management"
+  gunicorn --config "${PROJECT_DIR}/gunicorn.conf.py" core.wsgi:application --daemon \
+    --pid "${PROJECT_DIR}/gunicorn.pid" \
+    --access-logfile "${PROJECT_DIR}/logs/gunicorn_access.log" \
+    --error-logfile "${PROJECT_DIR}/logs/gunicorn_error.log"
+  echo "  gunicorn: started (daemon mode)"
+  echo ""
+  echo "NOTE: celery and nginx need manual restart by admin:"
+  echo "  sudo systemctl restart celery"
+  echo "  sudo systemctl reload nginx"
 fi
 
-if [ "${SERVICES_RESTARTED}" = true ]; then
-  echo ""
-  echo "========================================"
-  echo "Update complete!"
-  echo "========================================"
-  echo "Site:   https://${DOMAIN}/schoolsystem/"
-  echo "Admin:  https://${DOMAIN}/admin/"
-  echo "API:    https://${DOMAIN}/api/docs/"
-else
-  echo ""
-  echo "WARNING: Services may still be running. Manual restart may be needed."
-fi
+echo ""
+echo "========================================"
+echo "Update complete!"
+echo "========================================"
+echo "Frontend: https://${DOMAIN}/schoolsystem/"
+echo "Admin:    https://${DOMAIN}/admin/"
