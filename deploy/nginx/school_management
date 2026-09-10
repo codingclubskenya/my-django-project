@@ -30,7 +30,7 @@ server {
     client_max_body_size 50M;
 
     # React frontend static files
-    root /var/www/school_frontend;
+    root /home/personal/personalweb/frontend-apk-web;
     index index.html;
 
     location / {
@@ -58,14 +58,14 @@ server {
 
     # Django static files
     location /static/ {
-        alias /var/www/school_backend/staticfiles/;
+        alias /home/personal/personalweb/epk/backend/staticfiles/;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
 
     # Django media files
     location /media/ {
-        alias /var/www/school_backend/media/;
+        alias /home/personal/personalweb/epk/backend/media/;
         expires 7d;
     }
 }

@@ -3,13 +3,13 @@ Description=gunicorn daemon for School Management System
 After=network.target
 
 [Service]
-User=school
-Group=school
-WorkingDirectory=/var/www/school_backend
+User=devops
+Group=devops
+WorkingDirectory=/home/personal/personalweb/epk/backend
 Environment="DJANGO_SETTINGS_MODULE=core.settings_production"
-EnvironmentFile=/var/www/school_backend/.env
-ExecStart=/var/www/school_backend/venv/bin/gunicorn \
-  --config /var/www/school_backend/gunicorn.conf.py \
+EnvironmentFile=/home/personal/personalweb/epk/.env
+ExecStart=/home/personal/personalweb/epk/venv/bin/gunicorn \
+  --config /home/personal/personalweb/epk/gunicorn.conf.py \
   core.wsgi:application
 Restart=always
 RestartSec=3

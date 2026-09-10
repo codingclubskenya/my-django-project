@@ -17,8 +17,8 @@ set -e
 
 DOMAIN=${1:-yourdomain.com}
 EMAIL=${2:-admin@yourdomain.com}
-PROJECT_DIR="/var/www/school_backend"
-FRONTEND_DIR="/var/www/school_frontend"
+PROJECT_DIR="/home/personal/personalweb/epk"
+FRONTEND_DIR="/home/personal/personalweb/frontend-apk-web"
 GUNICORN_LOG_DIR="/var/log/gunicorn"
 VENV_DIR="${PROJECT_DIR}/venv"
 
