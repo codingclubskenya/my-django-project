@@ -1,52 +1,26 @@
 #!/bin/bash
 set -e
 
+# ==============================================================================
 # Quick update script - run this for minor code updates
 # Usage: ./deploy/update.sh [domain]
 #
-# This script auto-detects its location relative to the project root.
-# It works even without sudo privileges for service restarts.
+# Auto-detects project directory based on script location.
+# Works for both sudo and non-sudo environments.
+# ==============================================================================
 
 # Auto-detect project directory based on script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
-FRONTEND_SRC_DIR=""
-FRONTEND_OUT_DIR=""
+VENV_DIR="${PROJECT_DIR}/venv"
+FRONTEND_SRC_DIR="${PROJECT_DIR}/frontend_app"
+FRONTEND_OUT_DIR="${PROJECT_DIR}/../frontend-apk-web"
 DOMAIN=${1:-codingclubskenya.com}
 
-# Try to detect frontend source directory
-for possible in \
-  "${PROJECT_DIR}/frontend/codingclubskenya" \
-  "${PROJECT_DIR}/frontend_app" \
-  "$(dirname "${PROJECT_DIR}")/frontend/codingclubskenya" \
-  "$(dirname "${PROJECT_DIR}")/frontend_app"; do
-  if [ -d "${possible}" ]; then
-    FRONTEND_SRC_DIR="${possible}"
-    break
-  fi
-done
+# Ensure frontend directories exist
+mkdir -p "${FRONTEND_OUT_DIR}"
 
-# Try to detect frontend output directory
-for possible in \
-  "$(dirname "${PROJECT_DIR}")/frontend-apk-web" \
-  "${PROJECT_DIR}/../frontend-apk-web" \
-  "${PROJECT_DIR}/dist"; do
-  if [ -d "${possible}" ] || mkdir -p "${possible}" 2>/dev/null; then
-    FRONTEND_OUT_DIR="${possible}"
-    break
-  fi
-done
-
-# Fallback
-if [ -z "$FRONTEND_SRC_DIR" ]; then
-  FRONTEND_SRC_DIR="${PROJECT_DIR}/frontend/codingclubskenya"
-fi
-if [ -z "$FRONTEND_OUT_DIR" ]; then
-  FRONTEND_OUT_DIR="${PROJECT_DIR}/../frontend-apk-web"
-  mkdir -p "${FRONTEND_OUT_DIR}"
-fi
-
-# Determine if we can use sudo
+# Determine if we can use sudo for service restarts
 if [ "${EUID}" -eq 0 ]; then
   SUDO=""
 elif sudo -n true 2>/dev/null; then
@@ -56,56 +30,70 @@ else
   echo "WARNING: sudo not available. Service restarts will be skipped."
 fi
 
-echo "Updating School Management System..."
-echo "Project dir: ${PROJECT_DIR}"
-echo "Frontend src: ${FRONTEND_SRC_DIR}"
-echo "Frontend out: ${FRONTEND_OUT_DIR}"
-echo "Domain: ${DOMAIN}"
+echo "========================================"
+echo "Updating School Management System"
+echo "========================================"
+echo "Project: ${PROJECT_DIR}"
+echo "Domain:  ${DOMAIN}"
+echo "Sudo:    ${SUDO:-none}"
+echo ""
 
-# Activate virtual environment
+# ---- 1. Update backend code ----
+echo "[1/6] Pulling latest code..."
 cd "${PROJECT_DIR}/backend"
-source "${PROJECT_DIR}/venv/bin/activate"
-
-# Pull latest code
 git pull origin master
 
-# Install any new dependencies
+# ---- 2. Install/update Python dependencies ----
+echo "[2/6] Installing dependencies..."
+source "${VENV_DIR}/bin/activate"
 pip install -r requirements.txt
 
-# Run migrations
+# ---- 3. Django migrations ----
+echo "[3/6] Running migrations..."
 python manage.py migrate --settings=core.settings_production
-
-# Collect static files
 python manage.py collectstatic --noinput --settings=core.settings_production
 
-# Build frontend
+# ---- 4. Build frontend ----
+echo "[4/6] Building frontend..."
 cd "${FRONTEND_SRC_DIR}"
-npm ci 2>/dev/null || npm install
+VITE_API_URL="https://${DOMAIN}" npm ci 2>/dev/null || VITE_API_URL="https://${DOMAIN}" npm install
+VITE_API_URL="https://${DOMAIN}" npm run build
 
-# Update API URL for production (no /api suffix - API calls already include it)
-cat > .env.production << EOF
-VITE_API_URL=https://${DOMAIN}
-EOF
-
-npm run build
-
-# Copy built frontend files
+# ---- 5. Deploy frontend ----
+echo "[5/6] Deploying frontend..."
 mkdir -p "${FRONTEND_OUT_DIR}"
 cp -r dist/* "${FRONTEND_OUT_DIR}/"
 
-# Restart services (with fallback if sudo is not available)
-SERVICES_STARTED=false
-if [ -n "$SUDO" ]; then
-  $SUDO systemctl restart gunicorn 2>/dev/null && SERVICES_STARTED=true && echo "gunicorn restarted"
-  $SUDO systemctl restart celery 2>/dev/null && echo "celery restarted"
-  $SUDO systemctl restart celery-beat 2>/dev/null && echo "celery-beat restarted"
-  $SUDO systemctl reload nginx 2>/dev/null && echo "nginx reloaded"
+# ---- 6. Restart services ----
+echo "[6/6] Restarting services..."
+SERVICES_RESTARTED=false
+
+if [ -n "${SUDO}" ]; then
+  $SUDO systemctl restart gunicorn 2>/dev/null && SERVICES_RESTARTED=true && echo "  gunicorn: restarted"
+  $SUDO systemctl restart celery 2>/dev/null && echo "  celery: restarted"
+  $SUDO systemctl restart celery-beat 2>/dev/null && echo "  celery-beat: restarted"
+  $SUDO systemctl reload nginx 2>/dev/null && echo "  nginx: reloaded"
+else
+  echo "  No sudo access - restarting gunicorn directly..."
+  pkill -f "gunicorn.*core.wsgi" 2>/dev/null || true
+  sleep 1
+  cd "${PROJECT_DIR}/backend"
+  source "${VENV_DIR}/bin/activate"
+  gunicorn --config "${PROJECT_DIR}/gunicorn.conf.py" core.wsgi:application &
+  SERVICES_RESTARTED=true
+  echo "  gunicorn: started (PID in background)"
+  echo "  NOTE: Use startup.sh for full service management"
 fi
 
-if [ "$SERVICES_STARTED" = false ]; then
-  echo "WARNING: Could not restart services. Please restart them manually:"
-  echo "  sudo systemctl restart gunicorn celery celery-beat"
-  echo "  sudo systemctl reload nginx"
+if [ "${SERVICES_RESTARTED}" = true ]; then
+  echo ""
+  echo "========================================"
+  echo "Update complete!"
+  echo "========================================"
+  echo "Site:   https://${DOMAIN}/schoolsystem/"
+  echo "Admin:  https://${DOMAIN}/admin/"
+  echo "API:    https://${DOMAIN}/api/docs/"
+else
+  echo ""
+  echo "WARNING: Services may still be running. Manual restart may be needed."
 fi
-
-echo "Update complete!"
