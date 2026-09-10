@@ -35,8 +35,12 @@ server {
         try_files $uri $uri/ /schoolsystem/index.html;
     }
 
-    # Redirect root to /schoolsystem/
+    # Redirect root and any non-API/non-admin paths to /schoolsystem/
     location = / {
+        return 301 /schoolsystem/;
+    }
+
+    location / {
         return 301 /schoolsystem/;
     }
 

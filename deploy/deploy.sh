@@ -159,7 +159,7 @@ npm ci 2>/dev/null || npm install
 
 # Update API URL for production
 cat > .env.production << EOF
-VITE_API_URL=https://${DOMAIN}/api
+VITE_API_URL=https://${DOMAIN}
 EOF
 
 npm run build
