@@ -1,0 +1,14 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/fattym/epk.git
+	branch = master
+
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/fattym/frontend-apk-web.git
+	branch = master
+
+[submodule "distributor"]
+	path = distributor
+	url = https://github.com/fattym/disributor.git
+	branch = main
