@@ -1,0 +1,7 @@
+# Docker/nginx local setup artifacts - not for production deploy
+# Production configs and service files live in backend/deploy/
+
+nginx/certs/
+nginx/html/
+nginx/logs/
+nginx/letsencrypt/
