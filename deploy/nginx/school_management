@@ -3,6 +3,11 @@
 # Enable with: ln -s /etc/nginx/sites-available/school_management /etc/nginx/sites-enabled/
 # Remove default: rm /etc/nginx/sites-enabled/default
 
+# Request limits per client IP (coarse DoS guard; fine-grained login/payment limits live in Django).
+# 30 r/s with a burst of 100 comfortably covers a school behind one NAT.
+limit_req_zone $binary_remote_addr zone=lp_api:10m rate=30r/s;
+limit_req_status 429;
+
 # HTTP - redirect to HTTPS
 server {
     listen 80;
@@ -46,6 +51,7 @@ server {
 
     # Django API
     location /api/ {
+        limit_req zone=lp_api burst=100 nodelay;
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -70,7 +76,21 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
-    # Django media files
+    # Private uploads (CVs, student work, evidence, internal documents) are never
+    # served directly: Django checks the permission, then nginx streams the file
+    # from the internal location below (X-Accel-Redirect). Keep this prefix list
+    # in sync with core/private_files.py PRIVATE_PREFIXES (a test enforces it).
+    location ~* ^/media/(recruitment|assessment_evidence|reference_documents|scheme_uploads|course_attachments|course_materials|submissions|form_submissions|disputes)/ {
+        return 404;
+    }
+
+    location /protected-media/ {
+        internal;
+        alias /home/personal/personalweb/epk/backend/media/;
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    # Public media (product images, logos, website images)
     location /media/ {
         alias /home/personal/personalweb/epk/backend/media/;
         expires 7d;
