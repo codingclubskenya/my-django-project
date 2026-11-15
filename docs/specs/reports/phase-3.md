@@ -23,3 +23,33 @@ Branch `feat/school-data-management`. Production untouched; dev DB not yet migra
 - **Phone matching** scans the school's parents in Python (stored phones have mixed formats). Fine for thousands; Phase 4 may want a normalised phone column if imports get slow.
 - **Deploy:** back up, `check_duplicates`, `migrate`.
 - Root submodule pointers still not bumped.
+
+---
+
+# Phase 3 follow-up: dev migrate, probe, frontend (backend `828e3b4`, frontend `f57a4cf`)
+
+## Dev DB
+- Backed up to `<scratchpad>/db.sqlite3.before-phase3`, `check_duplicates` OK (parent check skipped: table did not exist yet), `migrate` applied `accounts.0021` and `0022` cleanly. Dev data otherwise untouched.
+
+## Probe results
+- **`scripts/api_probe.py`** (449 endpoints, 6656 requests, scratch DB copies; reads and writes, all 5 roles): the new routes behave as designed. `parents/`, `parents/template/`, `parents/bulk_import/`: admin 200/201, teacher/staff/parent/student 403. Rival parent id (`parents/46/`): admin 404, everyone else 403. Rival link id: 404. No Rival rows visible to Demo, no Rival mutations. Same 25 FK action-endpoint hits and 4 shared-row deletes as before (all pre-existing, none on parents). 166 "unexpected 2xx" are the existing unguarded endpoints, none are parent routes.
+- **One 500:** admin `POST /api/v1/auth/password/reset/` (`NoReverseMatch: 'password_reset_confirm'`). Reproduced on a DB copy for any email. It is the reset-link URL name clashing between allauth and `accounts/urls.py`, not part of this work and not fixed. The other roles got 200 because the probe's first call per role differs; the bug is real for every account. Needs its own fix.
+- **`scripts/parent_privacy_probe.py`** (new, read-only, run on a scratch copy where I gave the parent profiles national IDs and alternate phones so a leak would be visible): 63 requests as all 7 Demo users, **0 failures**. Confirmed: no Rival parent, profile, email or national ID in any response; the teacher gets no parent `national_id_no`, `phone` or `alt_phone` from `users/parents/`, `users/?role=PARENT` or any other checked list; a parent gets 403 on `parents/` and sees only themself in `users/parents/`; students see no parents. Not covered by the seed (no Registrar/Principal user): those roles are covered by `accounts/test_parents.py`.
+
+## Backend additions
+- `/api/auth/users/me/` now returns `groups` (names of the caller's own permission groups, empty on anyone else's record) so the frontend can show or hide controls.
+- Parents import: `parents/template/` and `parents/bulk_import/` (ADMIN/Registrar only, preview then confirm, columns NAME, PHONE, EMAIL, NATIONAL_ID_NO, ALT_PHONE, ADDRESS, OCCUPATION, GENDER, CHILD ADMISSION NUMBER, RELATIONSHIP). Matches by national ID, phone, email; a conflicting national ID or unknown admission number fails the row. Logged as import type `parents`.
+- Tests: 29 in `accounts/test_parents.py` (import, permissions, `me` groups added); `accounts core messaging` 292 passed.
+
+## Frontend (answer to your question 3: Phase 2 frontend was NOT done; now done)
+- `utils/permissions.js`: relationship list (FATHER/MOTHER/GUARDIAN/OTHER), role helpers from `user.groups`, authenticated file download.
+- `Parents.jsx`: uses `/api/auth/parents/` with server-side debounced search; ADMIN/Registrar get edit, add, delete, "Add child" (learner picker + relationship dropdown), remove link, and an Import button (shared `ImportDialog`, server template); Principal sees the same table read-only with no national ID column; everyone else sees "no access". The sidebar hides Parents for roles that cannot open it.
+- `Staff.jsx`: `ImportDialog` with the server 7-column template; group dropdowns and filter come from `/staff-groups/`; a Groups dialog (add, rename, delete custom groups, server messages shown); ADMIN/HR get add/edit/deactivate/import, everyone else read-only; deactivation-guard messages shown.
+- `Students.jsx`: import default relationship is `GUARDIAN` (the only other place the old free-text `Parent` was written). No other parent-link form existed.
+- `vite build` succeeds. **Not click-tested in a browser** and there is no frontend test suite or eslint config in the repo, so the UI is verified by build only.
+
+## Needs your attention
+- Fix the password-reset `NoReverseMatch` (separate change).
+- Click-through with seed accounts (no Registrar/Principal/HR seed user exists: add them to `seed_dev_users` or tell me to).
+- Frontend commit contains only my files; `.gitignore`, Android files and `gen-api-client.sh` in the frontend repo were already modified and left alone.
+- Root submodule pointers still not bumped.
