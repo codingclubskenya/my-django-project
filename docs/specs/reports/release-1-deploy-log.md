@@ -53,8 +53,8 @@
 - `f4f0b86`: `IsAuthenticatedAdminOrReadOnly` (anonymous gets 401) on school-scoped viewsets (academics reference data, events, shop categories/products/variants, transport driver students). `core/test_anonymous_sweep.py` hits every routed endpoint anonymously and asserts no 5xx, plus 401 checks. Full suite 468 OK on Postgres 16. Known, left alone: allauth HTML signup (500) and OPTIONS on the Swagger page.
 - Merged into feat/school-data-management; ships with the next backend release together with `/api/healthz/`.
 
-## Step 6: learningpack `/shop/<id>/` rewrite (pending, run by the user)
-- Live vhost has no placeholder fallback yet. Snippet from `docs/prod-capture/nginx-proposal/learningpack-shop-rewrite.snippet` goes before `location / {` (backup, `nginx -t`, reload). Until it is applied, product ids not pre-rendered (new products) 404 on a direct URL; the 133 current ones work. Verify afterwards: `/shop/135/` 200, `/shop/999999/` placeholder 200, `/shop/` unchanged.
+## Step 6: learningpack `/shop/<id>/` rewrite (done, verified 2026-11-16)
+- Applied by the user (backup, `nginx -t`, reload: RELOADED). Verified: `/shop/135/` 200 (own pre-rendered page, 25258 B); `/shop/999999/` 200 and byte-identical to `/shop/placeholder/` (md5 match, 25282 B); `/shop/` 200 (own index page, 42192 B, unchanged).
 
 ## Step 7: backups (done)
 - `backend/deploy/backup.sh` (backend 1142162, on fix/private-media and feat): pg_dump -Fc + media tarball under `~devops/backups`, aborts on empty dump / <=100 TOC entries / unreadable tarball, prunes own files older than 14 days. Installed at `~devops/deploy-scripts/backup.sh`.
@@ -63,7 +63,6 @@
 - Backups are on the same host (no offsite copy yet).
 
 ## Open items
-- Apply step 6 nginx rewrite and verify.
-- nginx backup dir `/root/nginx-backup-20261116` unverified (needs sudo).
+- nginx backup dir `/root/nginx-backup-20261116` verified by the user (3 files).
 - Next backend release: healthz + anonymous fix + backup.sh (repo copy).
 - Anonymous-fix and healthz are not live; live `/api/shop/products/` still 500s for anonymous until then.
