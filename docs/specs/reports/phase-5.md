@@ -34,3 +34,49 @@ Branch `feat/school-data-management` (backend + frontend). Production untouched;
 - **Frontend:** the Manage Classes and Add New Class tabs and both "New Class" buttons only show for users who can manage classes (`canManageClasses` in `utils/permissions.js`).
 - **Tests:** `ClassWriteAccessTests` (4 tests: create/update/archive per role incl. superuser, delete admin-only, teachers read, cross-school 404); `accounts/test_write_access.py` has `academics/streams/` (ADMIN by role; groups covered in `test_phase5.py`). Three older tests that encoded "teachers may create/edit classes" now assert the new rule: `StreamRBACTests` (renamed `test_teacher_cannot_create_stream`), `test_stream_delete_admin_only`, and the `registrar.classes` cell of the permission matrix in `core/test_imports.py`.
 - **Postgres 16, full suite: 705 tests, OK.**
+
+---
+
+# Phase 5 verification: dev DB, probe, browser pass (2026-11-17)
+
+Committed and pushed first: backend `5955681`, frontend `420448f`, root `4e00ba8` (Postgres 16 full suite: 705 OK before the commit).
+
+## Dev DB
+- Backed up SQLite to `<scratchpad>/db.sqlite3.before-phase5`. `check_duplicates`: OK (no duplicates). `migrate` applied `academics.0013`, `accounts.0023`, `accounts.0024` (and the unrelated pending `shop.0015_alter_product_image`). `seed_dev_users` re-run clean (Demo School id 1, Rival School id 2).
+
+## api_probe (reads + writes, all 7 roles incl. registrar and principal, scratch DB copies)
+- **10,121 requests, 0 responses of 5xx, 0 Rival rows visible to a Demo role, 0 Rival rows changed in the DB copy by a Demo role.**
+- **Unexpected 2xx for non-admin roles: 344** (same families as before; the probe's GUARDED list does not know the Registrar/Principal groups). Relevant to this work:
+  - registrar and principal: create/patch streams, `streams/bulk_import`, `class-teachers` write, `parents` write (registrar) are **expected** under the new rule (probe has no group awareness).
+  - **teacher gets 403 on every stream write** (no stream line in the list for teacher): the new read-only rule holds. `staff` (HR+Finance groups in the seed) writing `staff-profiles` is expected.
+  - **Not expected, pre-existing, not changed by me:** `student-class-enrollments` (enrollment history) POST returns 201 for teacher, staff, registrar and principal; `class-teachers` POST 201 for plain STAFF role (non-primary rows only; primary needs ADMIN/Principal/Registrar). History rows should probably be write-protected (ADMIN/Registrar) in a follow-up.
+- **FK cross-tenant "accepted" 2xx: 37** = the same 25 action endpoints as Phase 3 plus the same 6 for each of the two new roles (12). They are actions that ignore the Rival id in the payload (`timetable/generate`, `sync-from-curriculum`, `regenerate_summaries`, `seed-defaults`, `sync_from_distributors`) and `streams/bulk_import` with a Rival grade *name* (creates a grade in the caller's own school). No row of another school was read or changed.
+
+## Browser pass (Chrome, local dev only: frontend :5173, API :8000, seed accounts only)
+Setup notes: the browser held a login for a non-seed student; I logged it out and used only `@demo.com` seed accounts. Dev data already had Grade 7 East, North and West, so the new class is **Grade 7 Zion** (capacity 40, year 2026, subjects English + Mathematics). `teacher2@demo.com` (a second TEACHER, no password) was added through `manage.py shell` so "change supervisor" had two eligible people; Demo School had no staff records, so scenario 4 had to come first. CSVs I authored: `<scratchpad>/browser/staff.csv`, `staff2.csv`, `students.csv` (one row deliberately has an unknown class).
+
+| Step | Admin | Registrar | Principal | Teacher |
+|---|---|---|---|---|
+| 1 Create Grade 7 class with subjects (Add New Class) | PASS (duplicate East/West refused with a clear message; Zion saved, 2 subject overrides + 2 audit rows) | PASS (created "Registrar Test") | not run (tab visible) | PASS: no Manage/Add tabs, no New Class button |
+| 4 Staff import (preview, confirm; BOM/PA group row; link by email) | PASS (3 rows, Demo Teacher linked to `teacher@demo.com`; then a 4th row for Second Teacher) | N/A: staff page is read-only and empty | read-only list shown | not run |
+| 1b Set supervisor | PASS (ineligible Grace Mwangi refused with message; Demo Teacher saved, AuditLog written) | **FAIL (UI):** dropdown has no options (cannot read staff records); backend allows it | PASS (Demo Teacher assigned) | N/A |
+| 2 Student import: template download, preview, confirm | PASS (template XLSX downloaded; preview 3 create + 1 fail "Unknown class"; confirm 3 created, credentials banner shown) | PASS (preview works; re-upload flags 3 duplicates + 1 unknown class; confirm not repeated) | PASS: correctly refused ("You do not have permission") but the Import button is still shown | not run |
+| 3 `/parents` | PASS: Jane Otieno has Amina + Brian (second child reused the parent), Sam Wanjiru has Cate | PASS (list + Edit/Add child/Delete, national ID visible) | PASS read-only, no national ID column | PASS: "You do not have access to parent records." |
+| 5 Change supervisor | PASS (Demo Teacher to Second Teacher; audit "A -> B") | not possible in UI (see 1b) | PASS (see 1b) | N/A |
+| 6 Transfer a student | PASS via API only (BP-002 Zion to West: history `transferred`, new row active, parent link kept). The UI Transfer button uses `window.prompt` and moves **all** students of the class, so I did not drive it in the browser | not run | not run | not run |
+| 6b Deactivate a supervising teacher (Staff) | PASS: refused "Cannot deactivate: supervises Grade 7 Zion. Assign another supervisor first."; after clearing the supervisor the deactivation succeeded | N/A | N/A | N/A |
+| Class list XLSX download | PASS (admin: header block, `#/ADMNO/NAME/GENDER`, 3 learners, counts) | not run | not run | PASS (download from My Classes) |
+| My Classes shows own classes only | N/A (admin has none) | N/A | N/A | PASS: Demo Grade 7 Demo Seed A and Grade 7 Zion only, with boys/girls/total |
+
+## Issues found (nothing was fixed in the browser pass)
+1. **Registrar/Principal supervisor dropdown depends on staff visibility.** Registrar cannot read staff records, so the supervisor list is empty although the API allows the Registrar to set supervisors. Needs either a slim staff-picker endpoint for class managers or the Registrar group added to staff read.
+2. **My Classes duplicates a class**: "Demo Grade 7 Demo Seed A" appears twice for the teacher (a `class_teacher` assignment row plus the supervised-class row). `streams/my-classes/` should merge rows with no subject.
+3. **Supervisor dropdown does not show the current supervisor** (always reads "Assign supervisor"; the value is `user:<id>` but options are `staff:<n>`). The "Supervisor:" text line is correct.
+4. **Unlinked staff are offered as supervisors** (Grace Mwangi has no user account); picking one gives the right error but the option should be disabled.
+5. **Transfer button** uses `window.prompt` for a numeric stream id and transfers the whole class; it cannot be tested through the browser tool and is poor UX.
+6. **Import button visible to Principal** although the API refuses it (needs the Registrar group); hide with `canEditStudents`.
+7. **Literal `&amp;`** in the heading "Form &amp; Stream Overview" and a React console error "`<sectionHeader />` is using incorrect casing" in `Classes.jsx` (pre-existing); dashboard console error "Invalid scale configuration for scale: stacked" (pre-existing).
+8. **Staff deactivate error** is shown as "employment_status: Cannot deactivate..." (field name prefix).
+9. **Enrollment history is writable** by teachers/staff through `student-class-enrollments` (probe, pre-existing).
+10. **Seed data:** Demo School has no staff records and the seeded `principal@`/`registrar@` users are role STAFF (not TEACHER), so they can never supervise; `seed_dev_users` should create staff profiles for `teacher@demo.com`.
+11. Not run: Principal and Registrar create/transfer for every step, the Teacher on `/students` and `/staff`, a second import confirm as Registrar, the PDF/other printouts.
