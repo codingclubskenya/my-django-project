@@ -80,3 +80,43 @@ Setup notes: the browser held a login for a non-seed student; I logged it out an
 9. **Enrollment history is writable** by teachers/staff through `student-class-enrollments` (probe, pre-existing).
 10. **Seed data:** Demo School has no staff records and the seeded `principal@`/`registrar@` users are role STAFF (not TEACHER), so they can never supervise; `seed_dev_users` should create staff profiles for `teacher@demo.com`.
 11. Not run: Principal and Registrar create/transfer for every step, the Teacher on `/students` and `/staff`, a second import confirm as Registrar, the PDF/other printouts.
+
+---
+
+# Phase 5b: fixes for the browser-pass findings
+
+Commits: backend `f8eb8cf`, frontend `11e6954`, root `f5ace09`. **Full Postgres 16 suite: 724 tests, OK.**
+
+## What changed
+1. **Transfer / promote.** `enrollments/reassign_student` now needs an explicit non-empty `student_ids` list, a `stream_id` and a `reason` (the single `student_id` form is gone, so a request without a learner list is a 400). All or nothing: capacity is checked for the whole list, each old history row closes as `transferred`, the new row stores the reason, each move is audited. New `enrollments/promote_class` (`from_stream_id`, `to_stream_id`, `reason`, `confirm_count` must equal the learner count right now) for whole-class moves, history status `promoted`. Both ADMIN + Registrar only. UI: no more `window.prompt`; a per-learner "Transfer" button opens a modal (target class with places taken shown and full classes disabled, reason, confirmation box); "Promote class" opens a modal saying "all N learners". The roster in `Gradebook.jsx` no longer moves a learner on a dropdown change (it was an unconfirmed one-click move); it shows the class as text.
+2. **`student-class-enrollments` is read-only for everyone** (403 on create/update/delete, including ADMIN); history is written only by transfer, promote and the student import. `test_write_access.py` lists the route with no writer.
+3. **`streams/eligible-supervisors/`** (ADMIN, Principal, Registrar; others 403): active TEACHER users with an active StaffProfile in the caller's school, fields `id`, `name`, `phone` only. The picker uses it, so the Registrar gets a list and staff without an account never appear.
+4. **My Classes** returns one row per class with `roles` (class teacher and/or subject teacher) and `subjects`.
+5. **Picker shows the current supervisor** (value `teacher:<id>`, with a fallback option if the person is no longer eligible).
+6. **Controls hidden** for roles the API refuses: Import (ADMIN/Registrar only) and Register learner (ADMIN only) on Students; Transfer/Promote for ADMIN/Registrar only; class management tabs/buttons already gated.
+7. **`api_probe.py`** knows registrar/principal/staff are role STAFF plus groups (`ROLE_ACCOUNT`, `GROUP_WRITES` for Registrar, Principal, Finance, HR, Health); `accounts/test_probe_expectations.py` covers it.
+8. **`seed_dev_users`**: StaffProfiles for `teacher@`, `teacher2@` (new TEACHER user) and `staff@` in both schools (idempotent, keyed on the user), default staff groups ensured.
+
+## Tests added or changed
+`TransferPromoteTests` (explicit list required, reason, all-or-nothing capacity, scope/access, confirmed count, same class, empty class, history read-only), `EligibleSupervisorsTests`, three My Classes tests (merge, subject-only, class-teacher assignment plus supervisor), `test_probe_expectations` (4), `test_seed_dev_users` (4); `test_students` and `test_learner_scope` updated to the new transfer contract.
+
+## Browser re-run (Chrome, local dev only, seed accounts only)
+| Check | Role | Result |
+|---|---|---|
+| My Classes: one row per class, both roles and subject | Teacher | PASS: "Demo Grade 7 Demo Seed A" once (was twice); "Grade 7 Zion: Class teacher · Subject teacher, English" |
+| Supervisor picker lists eligible teachers; shows current supervisor | Registrar | PASS: options "Demo Teacher", "Second Teacher" (no unlinked staff, no inactive); current one is the selected value; changing it worked |
+| Supervisor picker shows current supervisor | Admin | PASS ("Second Teacher") |
+| Per-learner transfer modal | Registrar | PASS: empty submit refused ("Choose the class to move to."), target list shows "0/1 places taken", reason + confirmation required, learner moved, history row and reason stored, audit written |
+| Promote class | Registrar | PASS: modal says "all 4 learners", full class shown "(not enough room)" and disabled, confirm tick required, 4 learners moved (history `promoted`, reason stored) |
+| Import / Register hidden | Principal | PASS: no floating buttons on `/students`; no Transfer/Promote on `/classes`; supervisor pickers still shown |
+| Transfer/Promote visible | Admin | PASS |
+
+Setup done for the run: re-ran `seed_dev_users`, reactivated the deactivated T-102 staff record, set "Registrar Test" capacity to 1, gave the teacher an English assignment on Zion (shell). Dev data changed by the run: BP-001/BP-003-era Zion learners and the four West learners were moved (Zion now has 4 plus the one in Registrar Test).
+
+## Remaining issues (new, not fixed)
+1. **Registrar sees learner ids instead of names** in the class cards ("Transfer #54") because the learner list (`users/?role=STUDENT`) is not available to the Registrar; the modal title then reads "Transfer #54". Class cards should take names from the class-list/overview data.
+2. **Stale error in the modal:** after a validation error the red message stays while you fix the form; it clears only on submit.
+3. Heading shows a literal `&amp;` ("Form &amp; Stream Overview") and the `<sectionHeader />` React casing console error (pre-existing).
+4. Registrar cannot register a single learner (`users` create is ADMIN-only) although they can import and transfer.
+5. `Enrollment` (current class) rows can still be written directly by ADMIN through `enrollments/`, bypassing history; only the history route is locked.
+6. Class cards say "Supervisor: Demo Teacher2" because the seed gives every user the first name "Demo".
