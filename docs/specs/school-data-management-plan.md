@@ -115,17 +115,19 @@ Paths are under `backend/` unless noted.
 
 ### Phase 4: Students
 - Rewrite `users/bulk_import` in place (same URL, JSON contract still works). Fix class matching (grade+stream+year, school-scoped), parent matching via the phase 3 service, atomic per import, `StudentClassEnrollment` history rows, `BulkImportLog`. Admission-number constraint after audit. Extend `reassign_student`: capacity check, history (`transferred`), `AuditLog`; allow Registrar.
-- Tests: full import then verify enrollment and parent link; reused parent; duplicate admission numbers; unknown class; blank `nemis_number` on two rows; rollback leaves no orphan User; transfer keeps parent links.
+- Added from the benchmark review (`reports/benchmark-gap.md`): (a) data migration seeding a sixth default `StaffGroup`, BOM/PA (board and parent-association officials), idempotent per school, mirroring the Phase 2 seeding migration; (b) class-list data endpoint (admission number, name, gender, school header fields) and boys/girls/total counts per stream. Both school-scoped; teachers get the list only for classes they are assigned to (`TeacherAssignment`/`ClassTeacher`), Registrar/Principal for all classes in the school; no cross-school access.
+- Tests: full import then verify enrollment and parent link; reused parent; duplicate admission numbers; unknown class; blank `nemis_number` on two rows; rollback leaves no orphan User; transfer keeps parent links; BOM/PA seed idempotent and per school; class list scoped to school and to a teacher's own classes; gender counts correct and school-scoped.
 - Scenarios: 2, 3 (reuse), 6 (transfer).
 
 ### Phase 5: Classes
 - Shared `assign_supervisor(stream, staff)` helper used by the class API and streams `bulk_import`: requires an active TEACHER user with a same-school active `StaffProfile`; deletes the old primary row and writes `AuditLog` (before/after) in one transaction. Duplicate-primary demotion data migration, then the partial unique constraint. Fix `get_supervisor` and `summary` to use the primary. Because `Stream.academic_year` is a FK after Phase 0, class filters and the `ACADEMIC_YEAR` import column resolve to `SchoolAcademicYear`. Class detail (students, counts, available capacity). Archive/delete guard when enrollments exist. Filters by year, grade, level, stream.
 - Tests: ineligible supervisors rejected (inactive user, inactive staff, non-TEACHER, no `StaffProfile`, other school); change logged and old row deleted; duplicate-primary migration keeps the most recent and demotes the rest; constraint rejects a second primary; capacity numbers; delete blocked with students; teacher sees only own classes.
-- Regression: `Teachers.jsx` and attendance/messaging scope tests.
+- Added from the benchmark review: "My Classes" teacher view (own `TeacherAssignment` rows only, with a class-list action); boys/girls/total on class detail and list; subjects picker on Add Class writing through the existing `CurriculumSubject`/`StreamSubjectOverride` audited paths (grouped by subject type); class-list printout, Basic and Custom columns, XLSX first via `openpyxl` (escape formulas with `core/imports.py` helper). PDF class list waits for the exams-printouts release (WeasyPrint).
+- Regression: `Teachers.jsx` and attendance/messaging scope tests; teacher cannot open another teacher's class list.
 - Scenarios: 1, 5, 6 (teacher deactivation).
 
 ### Phase 6: Integration, hardening, docs
-- End-to-end test of scenarios 1–6, audit coverage, export escaping review, full probe, `docs/specs/school-data-management-implementation.md`, frontend states and a local click-through with seed accounts only.
+- End-to-end test of scenarios 1–6 (include class list and BOM/PA group), audit coverage, export escaping review, full probe, `docs/specs/school-data-management-implementation.md`, frontend states and a local click-through with seed accounts only.
 
 ## 4. Scenario → phase map
 | Scenario | Phases |
@@ -146,6 +148,7 @@ Paths are under `backend/` unless noted.
 6. `User.middle_name`.
 7. D10 approved as Phase 0: `Stream.academic_year` to FK, abort listing unmatched strings.
 8. `nemis_number`/`assessment_number`: NULL for blanks, plus `''` to NULL data migration.
+9. Benchmark additions (Phase 2 already committed): BOM/PA `StaffGroup` seeded by a Phase 4 data migration; class lists school-scoped, teachers only their own classes; XLSX printouts first.
 
 ## 6. Risks
 - Unique constraints on existing data (admission number, national ID, parent national ID) need a duplicate audit before the migration. The primary-supervisor constraint has its own data step.
