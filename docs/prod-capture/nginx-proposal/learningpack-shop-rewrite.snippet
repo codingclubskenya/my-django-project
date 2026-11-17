@@ -1,0 +1,5 @@
+    # Static export: any /shop/<id>/ not pre-rendered falls back to the placeholder page,
+    # which reads the real id from the URL client-side. Place before `location / {`.
+    location ~ ^/shop/[^/]+/?$ {
+        try_files $uri $uri/index.html /shop/placeholder/index.html;
+    }

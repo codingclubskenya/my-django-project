@@ -5,3 +5,5 @@ nginx/certs/
 nginx/html/
 nginx/logs/
 nginx/letsencrypt/
+graphify-out/
+db.sqlite3

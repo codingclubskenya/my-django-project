@@ -1,0 +1,13 @@
+# vendored / minified / generated
+**/public/draco/
+*.min.js
+*.bundle.js
+**/dist/
+**/build/
+**/.next/
+# python env + runtime data
+backend/venv_new/
+**/staticfiles/
+**/media/
+# Django migrations add noise nodes; read them directly when needed
+**/migrations/

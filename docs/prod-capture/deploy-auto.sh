@@ -1,0 +1,52 @@
+#!/bin/bash
+set -e
+
+PROJECT_ROOT="/home/devops/home/personal/personalweb"
+LOG_DIR="${PROJECT_ROOT}/logs"
+
+echo "=== $(date) Starting deployment ===" | tee -a "${LOG_DIR}/deploy.log"
+
+# Pull latest changes for all repos
+for d in disributor epk frontend-apk-web; do
+  echo "--- Pulling $d ---" | tee -a "${LOG_DIR}/deploy.log"
+  (cd "${PROJECT_ROOT}/$d" && git pull) 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+done
+
+# Build disributor (Next.js)
+echo "--- Building disributor ---" | tee -a "${LOG_DIR}/deploy.log"
+cd "${PROJECT_ROOT}/disributor"
+npm run build 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+
+# Build frontend-apk-web (Vite)
+echo "--- Building frontend-apk-web ---" | tee -a "${LOG_DIR}/deploy.log"
+cd "${PROJECT_ROOT}/frontend-apk-web/codingclubskenya"
+npm run build 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+
+# Django migrations & static files
+echo "--- Django migrations & static files ---" | tee -a "${LOG_DIR}/deploy.log"
+cd "${PROJECT_ROOT}/epk"
+./venv/bin/python manage.py migrate --settings=core.settings_production 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+./venv/bin/python manage.py collectstatic --noinput --settings=core.settings_production 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+
+# Restart gunicorn (epk) via systemd
+echo "--- Restarting gunicorn ---" | tee -a "${LOG_DIR}/deploy.log"
+sudo systemctl restart gunicorn 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+sleep 3
+
+# Restart disributor Next.js (systemd)
+echo "--- Restarting disributor-next ---" | tee -a "${LOG_DIR}/deploy.log"
+sudo systemctl restart disributor-next 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+sleep 3
+
+# Apply nginx config and reload
+echo "--- Reloading nginx ---" | tee -a "${LOG_DIR}/deploy.log"
+sudo nginx -t 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+sudo systemctl reload nginx 2>&1 | tee -a "${LOG_DIR}/deploy.log"
+
+# Verify services
+echo "=== Deployment complete ===" | tee -a "${LOG_DIR}/deploy.log"
+echo "Services status:" | tee -a "${LOG_DIR}/deploy.log"
+systemctl is-active gunicorn disributor-next nginx 2>/dev/null | tee -a "${LOG_DIR}/deploy.log"
+ps aux | grep -E "(gunicorn|nginx|next-server)" | grep -v grep | tee -a "${LOG_DIR}/deploy.log"
+
+echo "=== $(date) Deployment finished ===" | tee -a "${LOG_DIR}/deploy.log"

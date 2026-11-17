@@ -1,0 +1,1129 @@
+diff --git a/academics/views.py b/academics/views.py
+index 46c5b2c..3ee9ee9 100644
+--- a/academics/views.py
++++ b/academics/views.py
+@@ -53,36 +53,44 @@ from .serializers import (
+ class SchoolScopedViewSetMixin:
+     permission_classes = [permissions.IsAuthenticated]
+     school_filter_field = 'school'
++    schema = None
+ 
+     def get_queryset(self):
+         return self.queryset.model.objects.filter(**{self.school_filter_field: self.request.user.school})
+ 
+ 
+ class GradeViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Grade.objects.all()
+     serializer_class = GradeSerializer
+     permission_classes = [IsAdminOrReadOnly]
++    schema = None
+ 
+ 
+ class PathwayViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Pathway.objects.all()
+     serializer_class = PathwaySerializer
+     permission_classes = [IsAdminOrReadOnly]
++    schema = None
+ 
+ 
+ class StreamViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Stream.objects.all()
+     serializer_class = StreamSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+ 
+ 
+ class LearningAreaViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = LearningArea.objects.all()
+     serializer_class = LearningAreaSerializer
+     permission_classes = [IsAdminOrReadOnly]
+ 
+ 
+ class StrandViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Strand.objects.all()
+     serializer_class = StrandSerializer
+     school_filter_field = 'learning_area__school'
+@@ -90,6 +98,7 @@ class StrandViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class SubStrandViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = SubStrand.objects.all()
+     serializer_class = SubStrandSerializer
+     school_filter_field = 'strand__learning_area__school'
+@@ -97,6 +106,7 @@ class SubStrandViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class LearningOutcomeViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = LearningOutcome.objects.all()
+     serializer_class = LearningOutcomeSerializer
+     school_filter_field = 'sub_strand__strand__learning_area__school'
+@@ -104,6 +114,7 @@ class LearningOutcomeViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class RubricDescriptorViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = RubricDescriptor.objects.all()
+     serializer_class = RubricDescriptorSerializer
+     school_filter_field = 'outcome__sub_strand__strand__learning_area__school'
+@@ -111,6 +122,7 @@ class RubricDescriptorViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class TeacherAssignmentViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = TeacherAssignment.objects.all()
+     serializer_class = TeacherAssignmentSerializer
+ 
+@@ -156,6 +168,7 @@ class TeacherAssignmentViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class ClassTeacherViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = ClassTeacher.objects.all()
+     serializer_class = ClassTeacherSerializer
+ 
+@@ -164,6 +177,7 @@ class ClassTeacherViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class EnrollmentViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Enrollment.objects.all()
+     serializer_class = EnrollmentSerializer
+ 
+@@ -172,6 +186,7 @@ class EnrollmentViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class TimetableViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Timetable.objects.all()
+     serializer_class = TimetableSerializer
+ 
+@@ -472,6 +487,7 @@ class TimetableViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class TimetableConfigViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = TimetableConfig.objects.all()
+     serializer_class = TimetableConfigSerializer
+ 
+@@ -480,6 +496,7 @@ class TimetableConfigViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class TimetableSlotViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = TimetableSlot.objects.all()
+     serializer_class = TimetableSlotSerializer
+ 
+@@ -488,6 +505,7 @@ class TimetableSlotViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class AssignmentViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Assignment.objects.all()
+     serializer_class = AssignmentSerializer
+ 
+@@ -496,11 +514,13 @@ class AssignmentViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class TermViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Term.objects.all()
+     serializer_class = TermSerializer
+ 
+ 
+ class LearnerGroupViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = LearnerGroup.objects.all()
+     serializer_class = LearnerGroupSerializer
+ 
+@@ -510,6 +530,7 @@ class LearnerGroupViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ class AITeacherAssistView(APIView):
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def post(self, request):
+         task = request.data.get('task', 'general_help')
+diff --git a/accounts/views.py b/accounts/views.py
+index cc78846..316936c 100644
+--- a/accounts/views.py
++++ b/accounts/views.py
+@@ -23,6 +23,8 @@ class SchoolScopedViewSetMixin:
+ 
+ 
+ class CustomTokenObtainPairView(TokenObtainPairView):
++    schema = None
++
+     def post(self, request, *args, **kwargs):
+         response = super().post(request, *args, **kwargs)
+         if response.status_code == 200:
+@@ -33,6 +35,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
+ 
+ class StudentLoginView(APIView):
+     permission_classes = [permissions.AllowAny]
++    schema = None
+ 
+     def post(self, request):
+         student_id = request.data.get('student_id')
+@@ -58,6 +61,7 @@ class StudentLoginView(APIView):
+ 
+ 
+ class UserViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = User.objects.all()
+     serializer_class = UserSerializer
+     permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
+@@ -166,6 +170,7 @@ class UserViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ParentLearnerViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = ParentLearner.objects.all()
+     serializer_class = ParentLearnerSerializer
+ 
+@@ -180,6 +185,7 @@ class ParentLearnerViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ 
+ class TeacherLeaveViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = TeacherLeave.objects.all()
+     serializer_class = TeacherLeaveSerializer
+ 
+@@ -189,6 +195,7 @@ class TeacherLeaveViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
+ 
+ class PasswordResetRequestView(APIView):
+     permission_classes = [permissions.AllowAny]
++    schema = None
+ 
+     def post(self, request):
+         serializer = PasswordResetRequestSerializer(data=request.data)
+@@ -236,6 +243,7 @@ class PasswordResetRequestView(APIView):
+ 
+ class PasswordResetConfirmView(APIView):
+     permission_classes = [permissions.AllowAny]
++    schema = None
+ 
+     def post(self, request):
+         serializer = PasswordResetConfirmSerializer(data=request.data)
+diff --git a/ai/recruitment_ai.py b/ai/recruitment_ai.py
+index d1d9ff8..c286774 100644
+--- a/ai/recruitment_ai.py
++++ b/ai/recruitment_ai.py
+@@ -25,6 +25,7 @@ class ParentChatbotView(APIView):
+     answer is auditable (brief §4.3 — tool-use against the DRF API surface).
+     """
+     permission_classes = [permissions.IsAuthenticated, IsParent]
++    schema = None
+ 
+     def post(self, request):
+         question = request.data.get('question', '').strip()
+@@ -51,6 +52,7 @@ class InterviewQuestionGeneratorView(APIView):
+     Returns a *draft* — hiring team reviews before using (brief §4.7).
+     """
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def post(self, request, job_posting_id=None):
+         posting = get_object_or_404(JobPosting, id=job_posting_id)
+@@ -89,6 +91,7 @@ class ResumeScreeningView(APIView):
+     Augments — never replaces — human judgment (brief §4.4).
+     """
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def post(self, request, application_id=None):
+         application = get_object_or_404(Application, id=application_id)
+@@ -128,6 +131,7 @@ class ContentModerationView(APIView):
+     { "text": "..." }
+     """
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def post(self, request):
+         text = request.data.get('text', '').strip()
+diff --git a/ai/views.py b/ai/views.py
+index fe1f823..8940bee 100644
+--- a/ai/views.py
++++ b/ai/views.py
+@@ -139,6 +139,7 @@ class ReportCardNarrativeView(APIView):
+     Teachers paste/adjust it in the report-card UI before publishing.
+     """
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get(self, request, student_id=None):
+         user = request.user
+diff --git a/alumni/views.py b/alumni/views.py
+index 849c365..bc92d10 100644
+--- a/alumni/views.py
++++ b/alumni/views.py
+@@ -5,7 +5,9 @@ from .serializers import AlumniCreateSerializer, AlumniNetworkEventSerializer, A
+ 
+ 
+ class AlumniViewSet(viewsets.ModelViewSet):
++    schema = None
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get_serializer_class(self):
+         if self.action in ['create', 'update', 'partial_update']:
+@@ -20,8 +22,10 @@ class AlumniViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class AlumniNetworkEventViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = AlumniNetworkEventSerializer
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get_queryset(self):
+         return AlumniNetworkEvent.objects.filter(school=self.request.user.school).prefetch_related('alumni_attendees')
+diff --git a/assessment/views.py b/assessment/views.py
+index 0ba8593..2793338 100644
+--- a/assessment/views.py
++++ b/assessment/views.py
+@@ -51,9 +51,11 @@ class BulkAssessmentResponseSerializer(serializers.Serializer):
+ 
+ 
+ class CompetencyAssessmentViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = CompetencyAssessment.objects.none()
+     serializer_class = CompetencyAssessmentSerializer
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+@@ -70,6 +72,7 @@ class CompetencyAssessmentViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class AssessmentTaskViewSet(viewsets.ModelViewSet):
++    schema = None
+     """Full CRUD for formative assessment tasks, school-scoped.
+ 
+     CREATE accepts a nested `results` list (`{learner, level_achieved, remark}`)
+@@ -79,6 +82,7 @@ class AssessmentTaskViewSet(viewsets.ModelViewSet):
+     queryset = AssessmentTask.objects.none()
+     serializer_class = AssessmentTaskSerializer
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+@@ -109,9 +113,11 @@ class AssessmentTaskViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LearnerPortfolioViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = LearnerPortfolio.objects.none()
+     serializer_class = LearnerPortfolioSerializer
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+@@ -121,9 +127,11 @@ class LearnerPortfolioViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class AssessmentEvidenceViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = AssessmentEvidence.objects.all()
+     serializer_class = AssessmentEvidenceSerializer
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     def get_queryset(self):
+         return AssessmentEvidence.objects.filter(assessment__learner__school=self.request.user.school)
+@@ -136,6 +144,7 @@ class BulkAssessmentView(APIView):
+     Idempotent via optional per-row client_uuid; re-submitting updates the existing row.
+     """
+     permission_classes = [permissions.IsAuthenticated]
++    schema = None
+ 
+     @extend_schema(
+         request=BulkAssessmentRequestSerializer,
+diff --git a/attendance/views.py b/attendance/views.py
+index db7577b..653000d 100644
+--- a/attendance/views.py
++++ b/attendance/views.py
+@@ -12,9 +12,11 @@ from .serializers import AttendanceRecordSerializer, AttendanceSummarySerializer
+ 
+ 
+ class AttendanceRecordViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = AttendanceRecordSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+     queryset = AttendanceRecord.objects.none()
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+@@ -256,9 +258,11 @@ class AttendanceRecordViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class AttendanceSummaryViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = AttendanceSummarySerializer
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = AttendanceSummary.objects.none()
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+@@ -278,9 +282,11 @@ class AttendanceSummaryViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class AttendanceNotificationViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = AttendanceNotificationSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = AttendanceNotification.objects.none()
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+diff --git a/audit/urls.py b/audit/urls.py
+index 12b1d8f..cfadb3f 100644
+--- a/audit/urls.py
++++ b/audit/urls.py
+@@ -26,6 +26,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+     serializer_class = AuditLogReadSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     filterset_fields = ['action', 'school', 'content_type']
++    schema = None
+ 
+     def get_queryset(self):
+         user = self.request.user
+diff --git a/clubs/views.py b/clubs/views.py
+index 09bc95c..0281c3e 100644
+--- a/clubs/views.py
++++ b/clubs/views.py
+@@ -4,6 +4,7 @@ from .serializers import ClubSerializer, ClubSessionSerializer
+ 
+ 
+ class ClubViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Club.objects.all()
+     serializer_class = ClubSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -16,6 +17,7 @@ class ClubViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ClubSessionViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ClubSession.objects.all()
+     serializer_class = ClubSessionSerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/complaints/views.py b/complaints/views.py
+index 0abe86b..0b7131c 100644
+--- a/complaints/views.py
++++ b/complaints/views.py
+@@ -7,6 +7,7 @@ from .serializers import ComplaintSerializer, ComplaintCommentSerializer
+ 
+ 
+ class ComplaintViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Complaint.objects.all()
+     serializer_class = ComplaintSerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/core/settings.py b/core/settings.py
+index a7c31c9..b7a64f6 100644
+--- a/core/settings.py
++++ b/core/settings.py
+@@ -191,6 +191,8 @@ SPECTACULAR_SETTINGS = {
+     'DESCRIPTION': 'Multi-tenant school management system API',
+     'VERSION': '1.0.0',
+     'SERVE_INCLUDE_SCHEMA': False,
++    'DISABLE_ERRORS_AND_WARNINGS': True,
++    'DEFAULT_GENERATOR_CLASS': 'core.schema_generator.TolerantSchemaGenerator',
+ }
+ 
+ SIMPLE_JWT = {
+diff --git a/core/settings_production.py b/core/settings_production.py
+index 6a7b419..aba893e 100644
+--- a/core/settings_production.py
++++ b/core/settings_production.py
+@@ -193,6 +193,47 @@ CSRF_COOKIE_HTTPONLY = True
+ CSRF_COOKIE_SAMESITE = 'Lax'
+ SECURE_REDIRECT_EXEMPT = []
+ 
++REST_FRAMEWORK = {
++    'DEFAULT_AUTHENTICATION_CLASSES': [
++        'rest_framework_simplejwt.authentication.JWTAuthentication',
++    ],
++    'DEFAULT_PERMISSION_CLASSES': [
++        'rest_framework.permissions.IsAuthenticated',
++    ],
++    'DEFAULT_FILTER_BACKENDS': [
++        'django_filters.rest_framework.DjangoFilterBackend',
++    ],
++    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
++    'DEFAULT_THROTTLE_CLASSES': [
++        'rest_framework.throttling.AnonRateThrottle',
++        'rest_framework.throttling.UserRateThrottle',
++    ],
++    'DEFAULT_THROTTLE_RATES': {
++        'anon': '100/day',
++        'user': '1000/hour',
++    },
++}
++
++SPECTACULAR_SETTINGS = {
++    'TITLE': 'School Management API',
++    'DESCRIPTION': 'Multi-tenant school management system API',
++    'VERSION': '1.0.0',
++    'SERVE_INCLUDE_SCHEMA': False,
++    'DISABLE_ERRORS_AND_WARNINGS': True,
++    'DEFAULT_GENERATOR_CLASS': 'core.schema_generator.TolerantSchemaGenerator',
++    'SCHEMA_PATH_PREFIX': '/api/',
++    'SCHEMA_PATH_PREFIX_TRIM': True,
++    'SCHEMA_PATH_PREFIX_INSERT': '',
++    'PREPROCESSING_HOOKS': [
++        'drf_spectacular.hooks.preprocess_exclude_path_format',
++    ],
++    'POSTPROCESSING_HOOKS': [],
++    'EXCLUDE_PATH_PATTERNS': [
++        r'^/api/auth/',
++        r'^/api/token/',
++    ],
++}
++
+ LOGGING = {
+     'version': 1,
+     'disable_existing_loggers': False,
+diff --git a/courses/views.py b/courses/views.py
+index d3061c4..5d7f520 100644
+--- a/courses/views.py
++++ b/courses/views.py
+@@ -26,6 +26,7 @@ class CoursePermission(permissions.BasePermission):
+ 
+ 
+ class CourseViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = CourseSerializer
+     permission_classes = [permissions.IsAuthenticated, CoursePermission]
+ 
+@@ -210,6 +211,7 @@ class CourseViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class TopicViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = TopicSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -247,6 +249,7 @@ class TopicViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LessonViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = LessonSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -308,6 +311,7 @@ class LessonViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class QuizViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = QuizSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -340,6 +344,7 @@ class QuizViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LessonCommentViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = LessonCommentSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -351,6 +356,7 @@ class LessonCommentViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LessonProgressViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = LessonProgressSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -386,6 +392,7 @@ class LessonProgressViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LearningMaterialViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = LearningMaterialSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -419,6 +426,7 @@ class LearningMaterialViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class PostViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = PostSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     filterset_fields = ['topic', 'course', 'post_type']
+@@ -446,6 +454,7 @@ class PostViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class PostCommentViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = PostCommentSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     filterset_fields = ['post']
+@@ -458,6 +467,7 @@ class PostCommentViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class AssignmentViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = CourseAssignmentSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     filterset_fields = ['topic', 'course']
+@@ -477,6 +487,7 @@ class AssignmentViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class SubmissionViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = SubmissionSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+diff --git a/curriculum/views.py b/curriculum/views.py
+index ec14ba2..3a368b3 100644
+--- a/curriculum/views.py
++++ b/curriculum/views.py
+@@ -101,6 +101,7 @@ def parse_scheme_file(uploaded_file):
+ 
+ 
+ class ReferenceDocumentViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ReferenceDocument.objects.all()
+     serializer_class = ReferenceDocumentSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -116,6 +117,7 @@ class ReferenceDocumentViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class SchemeWeekViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = SchemeWeek.objects.all()
+     serializer_class = SchemeWeekSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -133,6 +135,7 @@ class SchemeWeekViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class SchemeOfWorkViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = SchemeOfWork.objects.all()
+     serializer_class = SchemeOfWorkSerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/discipline/views.py b/discipline/views.py
+index 7e051d1..729b5ce 100644
+--- a/discipline/views.py
++++ b/discipline/views.py
+@@ -5,6 +5,7 @@ from .serializers import DisciplinaryAppealSerializer, DisciplinaryRecordSeriali
+ 
+ 
+ class DisciplinaryRecordViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = DisciplinaryRecordSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -16,6 +17,7 @@ class DisciplinaryRecordViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class DisciplinaryAppealViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = DisciplinaryAppealSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+diff --git a/distributor/views.py b/distributor/views.py
+index 732fcff..f256a3a 100644
+--- a/distributor/views.py
++++ b/distributor/views.py
+@@ -18,6 +18,7 @@ User = get_user_model()
+ 
+ 
+ class DistributorProfileViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = DistributorProfile.objects.all()
+     serializer_class = DistributorProfileSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -71,6 +72,7 @@ class DistributorProfileViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class DistributorProductViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = DistributorProduct.objects.none()
+     serializer_class = DistributorProductSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -119,6 +121,7 @@ class DistributorProductViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class SchoolOrderViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = SchoolOrder.objects.none()
+     serializer_class = SchoolOrderSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -140,6 +143,7 @@ class SchoolOrderViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class DeliveryViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Delivery.objects.none()
+     serializer_class = DeliverySerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/events/views.py b/events/views.py
+index e27b05f..859fde4 100644
+--- a/events/views.py
++++ b/events/views.py
+@@ -5,6 +5,7 @@ from .serializers import EventSerializer
+ 
+ 
+ class EventViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Event.objects.all()
+     serializer_class = EventSerializer
+     permission_classes = [IsAdminOrReadOnly]
+diff --git a/exams/views.py b/exams/views.py
+index 26240b2..ba1e4d1 100644
+--- a/exams/views.py
++++ b/exams/views.py
+@@ -15,6 +15,7 @@ from homework.models import HomeworkSubmission
+ 
+ 
+ class ExamViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Exam.objects.all()
+     serializer_class = ExamSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+@@ -104,6 +105,7 @@ class ExamViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ExamGradeViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ExamGrade.objects.all()
+     serializer_class = ExamGradeSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+@@ -208,6 +210,7 @@ class ExamGradeViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ReportCardViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ReportCard.objects.all()
+     serializer_class = ReportCardSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+diff --git a/fees/views.py b/fees/views.py
+index e777e04..c1e3136 100644
+--- a/fees/views.py
++++ b/fees/views.py
+@@ -9,6 +9,7 @@ from accounts.permissions import IsAdminOrStaffOrReadOnly, IsAdminOrStaffOrReadO
+ 
+ 
+ class FeeStructureViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = FeeStructureSerializer
+     permission_classes = [IsAdminOrStaffOrReadOnly]
+     queryset = FeeStructure.objects.none()
+@@ -21,6 +22,7 @@ class FeeStructureViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class InvoiceViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = InvoiceSerializer
+     permission_classes = [IsAdminOrStaffOrReadOnlyOrOwner]
+     queryset = Invoice.objects.none()
+@@ -67,6 +69,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class PaymentViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = PaymentSerializer
+     permission_classes = [IsAdminOrStaffOrReadOnlyOrOwner]
+     queryset = Payment.objects.none()
+diff --git a/health/views.py b/health/views.py
+index e72f2c9..cbfb83e 100644
+--- a/health/views.py
++++ b/health/views.py
+@@ -5,6 +5,7 @@ from .serializers import HealthRecordSerializer, NurseVisitSerializer
+ 
+ 
+ class HealthRecordViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = HealthRecordSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -16,6 +17,7 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class NurseVisitViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = NurseVisitSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+diff --git a/homework/views.py b/homework/views.py
+index ac7d92e..5954b25 100644
+--- a/homework/views.py
++++ b/homework/views.py
+@@ -10,6 +10,7 @@ from .serializers import HomeworkSerializer, HomeworkSubmissionSerializer
+ 
+ 
+ class HomeworkViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Homework.objects.all()
+     serializer_class = HomeworkSerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/library/views.py b/library/views.py
+index 1061dc5..432fe6c 100644
+--- a/library/views.py
++++ b/library/views.py
+@@ -11,15 +11,18 @@ class SchoolScopedViewSetMixin:
+ 
+ 
+ class BookViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Book.objects.all()
+     serializer_class = BookSerializer
+ 
+ 
+ class LoanViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Loan.objects.all()
+     serializer_class = LoanSerializer
+ 
+ 
+ class ReservationViewSet(SchoolScopedViewSetMixin, viewsets.ModelViewSet):
++    schema = None
+     queryset = Reservation.objects.all()
+     serializer_class = ReservationSerializer
+diff --git a/messaging/views.py b/messaging/views.py
+index d64086d..74a1009 100644
+--- a/messaging/views.py
++++ b/messaging/views.py
+@@ -19,6 +19,7 @@ from .serializers import (
+ 
+ 
+ class AnnouncementViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = AnnouncementSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+     queryset = Announcement.objects.none()
+@@ -31,6 +32,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class DirectMessageViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = DirectMessageSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+     queryset = DirectMessage.objects.none()
+@@ -56,6 +58,7 @@ class DirectMessageViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class NotificationViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = NotificationSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+     queryset = Notification.objects.none()
+@@ -191,6 +194,7 @@ def get_parents_with_learners(school, allowed_grade_ids=None):
+ 
+ 
+ class ConversationViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = ConversationSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = Conversation.objects.none()
+@@ -661,6 +665,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ConversationMessageViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = ConversationMessageSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = ConversationMessage.objects.none()
+diff --git a/notices/views.py b/notices/views.py
+index 643a1f1..81bfa2a 100644
+--- a/notices/views.py
++++ b/notices/views.py
+@@ -23,6 +23,7 @@ def _visible_to(notice, user):
+ 
+ 
+ class NoticeViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Notice.objects.all()
+     serializer_class = NoticeSerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/parent_meetings/views.py b/parent_meetings/views.py
+index d09e55d..0c633ab 100644
+--- a/parent_meetings/views.py
++++ b/parent_meetings/views.py
+@@ -9,6 +9,7 @@ from .serializers import (
+ 
+ 
+ class ParentTeacherMeetingViewSet(viewsets.ModelViewSet):
++    schema = None
+     permission_classes = [permissions.IsAuthenticated]
+ 
+     def get_serializer_class(self):
+@@ -29,6 +30,7 @@ class ParentTeacherMeetingViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class MeetingNoteViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = MeetingNoteSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+diff --git a/payroll/views.py b/payroll/views.py
+index 275185a..a2f2c1b 100644
+--- a/payroll/views.py
++++ b/payroll/views.py
+@@ -4,6 +4,7 @@ from .models import LeaveRequest, LeaveType, PayrollSettings, Payslip, StaffProf
+ 
+ 
+ class StaffProfileViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = None
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -22,6 +23,7 @@ class StaffProfileViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LeaveTypeViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = None
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -37,6 +39,7 @@ class LeaveTypeViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class LeaveRequestViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = None
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -52,6 +55,7 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class PayslipViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = None
+     permission_classes = [permissions.IsAuthenticated]
+ 
+@@ -67,6 +71,7 @@ class PayslipViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class PayrollSettingsViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = None
+     permission_classes = [permissions.IsAuthenticated]
+ 
+diff --git a/procurement/views.py b/procurement/views.py
+index 55b3ae3..c1810f8 100644
+--- a/procurement/views.py
++++ b/procurement/views.py
+@@ -17,6 +17,7 @@ from .serializers import (
+ 
+ 
+ class SchoolScopedViewSet(viewsets.ModelViewSet):
++    schema = None
+     permission_classes = [permissions.IsAuthenticated]
+     school_filter_field = 'school'
+ 
+@@ -111,6 +112,7 @@ class PurchaseOrderViewSet(SchoolScopedViewSet):
+ 
+ 
+ class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = PurchaseOrderItem.objects.all()
+     serializer_class = PurchaseOrderItemSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -120,6 +122,7 @@ class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class GoodsReceivedViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = GoodsReceived.objects.all()
+     serializer_class = GoodsReceivedSerializer
+     permission_classes = [IsAdminOrStaffOrTeacher]
+diff --git a/recruitment/views.py b/recruitment/views.py
+index 32f57a2..14f5389 100644
+--- a/recruitment/views.py
++++ b/recruitment/views.py
+@@ -18,6 +18,7 @@ User = get_user_model()
+ 
+ 
+ class PipelineStageViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = PipelineStage.objects.none()
+     serializer_class = PipelineStageSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -30,6 +31,7 @@ class PipelineStageViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class JobPostingViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = JobPosting.objects.none()
+     serializer_class = JobPostingSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -86,6 +88,7 @@ class PublicApplicationViewSet(viewsets.GenericViewSet):
+ 
+ 
+ class ApplicationViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Application.objects.none()
+     serializer_class = ApplicationSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -112,6 +115,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class InterviewViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Interview.objects.none()
+     serializer_class = InterviewSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -125,6 +129,7 @@ class InterviewViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ScoreCardViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ScoreCard.objects.none()
+     serializer_class = ScoreCardSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -138,6 +143,7 @@ class ScoreCardViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class OfferViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Offer.objects.none()
+     serializer_class = OfferSerializer
+     permission_classes = [permissions.IsAuthenticated]
+diff --git a/requirements/views.py b/requirements/views.py
+index 83890c8..ce3448c 100644
+--- a/requirements/views.py
++++ b/requirements/views.py
+@@ -7,6 +7,7 @@ from .serializers import RequiredItemSerializer, RequiredItemCreateSerializer, R
+ 
+ 
+ class RequiredItemViewSet(viewsets.ModelViewSet):
++    schema = None
+     permission_classes = [permissions.IsAuthenticated]
+     filterset_fields = ['class_level', 'term', 'is_mandatory', 'is_published']
+ 
+@@ -65,6 +66,7 @@ class RequiredItemViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class RequiredItemOptionViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = RequiredItemOptionSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     filterset_fields = ['required_item', 'source_type', 'delivery_available']
+diff --git a/shop/views.py b/shop/views.py
+index a3c2777..46c47d3 100644
+--- a/shop/views.py
++++ b/shop/views.py
+@@ -46,6 +46,7 @@ def sync_distributor_categories(school):
+ 
+ 
+ class ProductCategoryViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ProductCategory.objects.all()
+     serializer_class = ProductCategorySerializer
+     permission_classes = [IsAdminOrReadOnly]
+@@ -66,6 +67,7 @@ class ProductCategoryViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ProductViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Product.objects.all()
+     serializer_class = ProductSerializer
+     permission_classes = [IsAdminOrReadOnly]
+@@ -319,6 +321,7 @@ class ProductViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class ProductVariantViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = ProductVariant.objects.all()
+     serializer_class = ProductVariantSerializer
+     permission_classes = [IsAdminOrReadOnly]
+@@ -350,6 +353,7 @@ class PublicProductViewSet(viewsets.ReadOnlyModelViewSet):
+ 
+ 
+ class OrderViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = Order.objects.all()
+     serializer_class = OrderSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -696,6 +700,7 @@ def chama_webhook(request):
+ 
+ 
+ class FormSubmissionViewSet(viewsets.ModelViewSet):
++    schema = None
+     """Public form submissions (contact, onboarding, etc.) with admin review.
+ 
+     - Anonymous users can POST to create submissions.
+diff --git a/tenants/views.py b/tenants/views.py
+index 1c1957b..ce96443 100644
+--- a/tenants/views.py
++++ b/tenants/views.py
+@@ -4,6 +4,7 @@ from .serializers import SchoolSerializer, SchoolSettingsSerializer
+ 
+ 
+ class SchoolViewSet(viewsets.ModelViewSet):
++    schema = None
+     queryset = School.objects.all()
+     serializer_class = SchoolSerializer
+     permission_classes = [permissions.IsAuthenticated]
+@@ -16,6 +17,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class SchoolSettingsViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = SchoolSettingsSerializer
+     permission_classes = [permissions.IsAuthenticated]
+ 
+diff --git a/transport/views.py b/transport/views.py
+index 81d47ed..2e28696 100644
+--- a/transport/views.py
++++ b/transport/views.py
+@@ -19,6 +19,7 @@ class IsAdminOrDriver(permissions.BasePermission):
+ 
+ 
+ class RouteViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = RouteSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = Route.objects.none()
+@@ -57,6 +58,7 @@ class RouteViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class BusStopViewSet(viewsets.ModelViewSet):
++    schema = None
+     serializer_class = BusStopSerializer
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = BusStop.objects.none()
+@@ -87,6 +89,7 @@ class BusStopViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class BusViewSet(viewsets.ModelViewSet):
++    schema = None
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = Bus.objects.none()
+ 
+@@ -151,6 +154,7 @@ class BusViewSet(viewsets.ModelViewSet):
+ 
+ 
+ class BusAssignmentViewSet(viewsets.ModelViewSet):
++    schema = None
+     permission_classes = [permissions.IsAuthenticated]
+     queryset = BusAssignment.objects.none()
+ 
+diff --git a/website/views.py b/website/views.py
+index 4044baa..816e8d8 100644
+--- a/website/views.py
++++ b/website/views.py
+@@ -27,6 +27,7 @@ class IsSchoolAdmin(permissions.BasePermission):
+ 
+ 
+ class WebsiteConfigViewSet(viewsets.ModelViewSet):
++    schema = None
+     """CRUD for a school's website configuration.
+ 
+     Scoped to the requesting user's school.  Only ADMINs may write.

@@ -1,0 +1,22 @@
+--- nginx-proposal/orig/codingclubskenya-api.conf	2026-11-15 15:45:04.510369088 +0300
++++ nginx-proposal/new/codingclubskenya-api.conf	2026-11-15 15:45:04.526502001 +0300
+@@ -10,6 +10,19 @@
+         add_header Cache-Control "public, immutable";
+     }
+ 
++    # Private uploads are never served directly: Django checks permission, then
++    # nginx streams the file from the internal location below (X-Accel-Redirect).
++    # Keep in sync with core/private_files.py PRIVATE_PREFIXES.
++    location ~* ^/media/(recruitment|assessment_evidence|reference_documents|scheme_uploads|course_attachments|course_materials|submissions|form_submissions|disputes)/ {
++        return 404;
++    }
++
++    location /protected-media/ {
++        internal;
++        alias /home/devops/home/personal/personalweb/epk/media/;
++        add_header X-Content-Type-Options nosniff always;
++    }
++
+     # Django Media Files
+     location /media/ {
+         alias /home/devops/home/personal/personalweb/epk/media/;

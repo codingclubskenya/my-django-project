@@ -1,0 +1,61 @@
+diff --git a/app/discovery/page.tsx b/app/discovery/page.tsx
+index 708b9b1..cb55824 100644
+--- a/app/discovery/page.tsx
++++ b/app/discovery/page.tsx
+@@ -1,6 +1,7 @@
+ "use client";
+ 
+-import { useEffect, useMemo, useState, use } from "react";
++import { useEffect, useMemo, useState } from "react";
++import { useSearchParams } from "next/navigation";
+ import Link from "next/link";
+ import GlobalHeader from "@/components/GlobalHeader";
+ import GlobalFooter from "@/components/GlobalFooter";
+@@ -15,26 +16,21 @@ import {
+   type DistributorInfo,
+ } from "@/lib/discoveryApi";
+ 
+-interface DiscoveryPageProps {
+-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+-}
+-
+ function formatPrice(value: string | number | undefined | null): string {
+   const num = typeof value === "number" ? value : parseFloat(value || "0");
+   if (isNaN(num)) return "KSh 0";
+   return `KSh ${num.toLocaleString("en-KE")}`;
+ }
+ 
+-export default function DiscoveryPage({ searchParams }: DiscoveryPageProps) {
+-  const resolvedSearchParams = use(searchParams ?? Promise.resolve({} as Record<string, string | string[] | undefined>));
++export default function DiscoveryPage() {
++  const searchParams = useSearchParams();
+ 
+-  const initialSearch = typeof resolvedSearchParams?.search === "string" ? resolvedSearchParams.search : "";
+-  const initialCategory = typeof resolvedSearchParams?.category === "string" ? resolvedSearchParams.category : "";
+-  const initialInstitutionType =
+-    typeof resolvedSearchParams?.institution_type === "string" ? resolvedSearchParams.institution_type : "";
+-  const initialDistributor = typeof resolvedSearchParams?.distributor === "string" ? resolvedSearchParams.distributor : "";
+-  const initialMinPrice = typeof resolvedSearchParams?.min_price === "string" ? resolvedSearchParams.min_price : "";
+-  const initialMaxPrice = typeof resolvedSearchParams?.max_price === "string" ? resolvedSearchParams.max_price : "";
++  const initialSearch = searchParams?.get("search") || "";
++  const initialCategory = searchParams?.get("category") || "";
++  const initialInstitutionType = searchParams?.get("institution_type") || "";
++  const initialDistributor = searchParams?.get("distributor") || "";
++  const initialMinPrice = searchParams?.get("min_price") || "";
++  const initialMaxPrice = searchParams?.get("max_price") || "";
+ 
+   const [products, setProducts] = useState<DiscoveryProduct[]>([]);
+   const [videos, setVideos] = useState<ShoppableVideo[]>([]);
+diff --git a/next.config.ts b/next.config.ts
+index 1f6f6ce..d58102b 100644
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -1,6 +1,8 @@
+ import type { NextConfig } from "next";
+ 
+ const nextConfig: NextConfig = {
++  output: "export",
++  trailingSlash: true,
+   images: {
+     unoptimized: true,
+   },

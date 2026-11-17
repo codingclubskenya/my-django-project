@@ -1,0 +1,14 @@
+--- nginx-proposal/orig/codingclubskenya-learningpack.conf	2026-11-15 15:45:04.518998960 +0300
++++ nginx-proposal/new/codingclubskenya-learningpack.conf	2026-11-15 15:45:09.086065910 +0300
+@@ -21,6 +21,11 @@
+     }
+ 
+     # Next.js static export SPA fallback
++    # Defence in depth: private upload prefixes are never served from this host.
++    location ~* ^/media/(recruitment|assessment_evidence|reference_documents|scheme_uploads|course_attachments|course_materials|submissions|form_submissions|disputes)/ {
++        return 404;
++    }
++
+     location / {
+         try_files $uri $uri/ /index.html;
+     }

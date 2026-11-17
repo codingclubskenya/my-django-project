@@ -1,0 +1,14 @@
+--- nginx-proposal/orig/codingclubskenya-main.conf	2026-11-15 15:45:04.515362947 +0300
++++ nginx-proposal/new/codingclubskenya-main.conf	2026-11-15 15:45:09.077165779 +0300
+@@ -4,6 +4,11 @@
+     root /home/devops/home/personal/personalweb/frontend-apk-web/codingclubskenya/dist;
+     index index.html;
+ 
++    # Defence in depth: private upload prefixes are never served from this host.
++    location ~* ^/media/(recruitment|assessment_evidence|reference_documents|scheme_uploads|course_attachments|course_materials|submissions|form_submissions|disputes)/ {
++        return 404;
++    }
++
+     location / {
+         add_header Cache-Control "no-cache, must-revalidate";
+         add_header Pragma "no-cache";

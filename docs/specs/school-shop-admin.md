@@ -17,7 +17,7 @@ A school can run its own shop from its own suppliers, and a platform operator co
 | Actor | Can do |
 |---|---|
 | Platform admin (`is_platform_admin(user)`, i.e. `is_superuser`) | Verify, suspend, unsuspend a `DistributorProfile` (already true). Set `supplier_approval_delegated` for any school. Decide any school-supplier relationship. See everything (the only cross-school role). |
-| School ADMIN | Decide school-supplier relationships **only when** that school's `supplier_approval_delegated` is True. Manage everything in section 4 for their own school. Enable or disable the school's `shop_enabled`. |
+| School ADMIN | Decide school-supplier relationships **only when** that school's `supplier_approval_delegated` is True. Manage everything in section 4 for their own school. Disable (never enable) the school's own shop via `shop_enabled`. |
 | `Procurement` group member (school-bound) | Same as school ADMIN for sections 3 and 4 (not `shop_enabled`, not school settings). |
 | Distributor (role DISTRIBUTOR) | Own profile, products, orders, deliveries, wallet (existing). Sees which schools approved them; cannot approve themselves. |
 | Parent | Browse and order from their own school when `shop_enabled`. Own orders only. |
@@ -80,12 +80,12 @@ Graph checked first: `graphify-out/graph.json` has 6134 nodes (more than 3000). 
 
 - **D1 New join model `distributor.SchoolSupplier`** (school, distributor, status, requested_by, decided_by, decided_at, note; unique school+distributor). Lives in the `distributor` app next to `SchoolOrder`. Not on `procurement.Supplier`.
 - **D2 Keep `procurement.Supplier` as the school's local, off-platform vendor list** and fix its permissions (G6). Platform suppliers are traded through `SchoolSupplier` + `SchoolOrder` + `Delivery`. No data merge. The school-shop UI shows both lists, labelled.
-- **D3 Shared catalogue = active `Product` rows with `school IS NULL`**, curated by the platform admin, visible to every shop-enabled school (read-only for schools). Schools build their own listing by importing from approved suppliers (existing import action, now gated). If you want no shared catalogue, drop this and the rest still works.
-- **D4 `shop_enabled` is the school ADMIN's switch** (default False); `supplier_approval_delegated` is platform-only (default False).
+- **D3 (decided: keep) Shared catalogue = active `Product` rows with `school IS NULL`**, created and edited by the platform admin only, visible read-only to every shop-enabled school. Schools build their own listing by importing from approved suppliers (existing import action, now gated). Parent checkout of a shared item is a Phase 2 decision (the G7 hotfix allows own-school listings only).
+- **D4 (decided) The platform enables the shop; the school ADMIN may only disable it.** `shop_enabled` defaults False; setting it True is platform-admin only, setting it False is allowed to the school ADMIN (and platform). Re-enabling after a school disable needs the platform. `supplier_approval_delegated` is platform-only (default False).
 - **D5 Stock:** no new inventory model. "Receive" on a delivered `SchoolOrder` stamps `received_at/received_by` and adds quantities to the matching school `ProductVariant.stock_quantity` (listings linked to that distributor product) or to a `StockItem` (by name) otherwise. Every receive is audited. School inventory view = both tables.
 - **D6 Performance is computed, not stored:** per approved supplier and period: orders, fulfilment rate, cancellations, average days order to delivered, on-time rate against `estimated_delivery`, disputes on linked parent orders.
 - **D7 New app `schoolshop`** (views, services, reports, permissions glue only, no models). New models are limited to `SchoolSupplier` (distributor app), two settings flags (tenants), `SchoolOrder.received_at/received_by`.
-- **D8 Orders in flight** when a supplier is suspended globally: they stay visible and can be completed or cancelled; no new orders or imports are allowed.
+- **D8 (decided) Suspended supplier:** no new orders, imports or catalogue/storefront listings (hotfix shipped for orders, imports, catalogues and the anonymous storefront). Orders in flight stay visible and can finish (completed or cancelled). Affected schools are flagged: the school-shop supplier list and each in-flight order show a "supplier suspended" marker (Phase 2 field `supplier_suspended` on supplier rows and `SchoolOrder` serializer; Phase 3 banner).
 
 ## 4. School shop management (for ADMIN and Procurement, own school only)
 
@@ -105,8 +105,8 @@ Existing `shop/products`, `shop/categories` and `shop/orders` stay for day-to-da
 ## 5. Parents
 
 - `GET /api/v1/school-shop/storefront/`: the parent's school only, only when `shop_enabled`, only listings whose supplier is currently tradeable (or the school's own and shared products). 404 or empty with a clear message when the shop is off.
-- Order creation (`OrderCreateSerializer`, cart checkout, guest orders): each variant must belong to the order's school or to the shared catalogue, the school must have `shop_enabled`, and reseller listings must pass `school_can_trade`. This closes G7.
-- `PublicProductViewSet` (anonymous): filter out listings whose distributor is not verified or is suspended (G3). Whether the anonymous storefront should stay global or become per-school is a separate decision; this spec only stops it showing suspended or unapproved supply.
+- Order creation (`OrderCreateSerializer`, cart checkout, guest orders): each variant must belong to the order's school (never a school-less product, decision 7), the school must have `shop_enabled` (platform-enabled, D4), and reseller listings must pass `school_can_trade`. This closes G7.
+- `PublicProductViewSet` (anonymous): filter out listings whose distributor is not verified or is suspended (G3). **Decided:** the anonymous storefront stays global (all schools' active listings), minus suspended or unverified supply. Per-school storefronts remain out of scope.
 
 ## 6. Global distributor admin panel
 
@@ -137,9 +137,21 @@ Existing `shop/products`, `shop/categories` and `shop/orders` stay for day-to-da
 
 Payments and escrow release logic, M-Pesa, the 3D storefront, commission rules, supplier onboarding forms, multi-currency, per-school anonymous storefront URLs, deleting `procurement.Supplier`, migrating existing `Supplier` rows into `SchoolSupplier`.
 
-## 10. Questions for you (defaults above apply if you do not answer)
+## 10. Decisions (confirmed)
 
-1. D3: keep a shared catalogue of school-less products, or drop it?
-2. D4: should `shop_enabled` also be platform-only, or may the school ADMIN switch their own shop on?
-3. D8: block new orders to a suspended supplier but let in-flight orders finish, as proposed?
-4. Anonymous storefront: leave global for now (only filter suspended/unapproved supply), as proposed?
+1. D3: keep the shared catalogue; platform-only edits.
+2. D4: platform enables the shop; school ADMIN may disable it.
+3. D8: suspended supplier = no new orders; in-flight orders finish; schools are flagged.
+4. Anonymous storefront: stays global, minus suspended or unverified supply.
+5. **Deploy impact:** closing G2 means schools lose supplier products until relationships are approved. A one-off `preapprove_school_suppliers` command creates APPROVED rows for existing school/supplier pairs. It must first run as a **dry run that prints the full list** (school, supplier, evidence such as existing `SchoolOrder`s or imported listings) for your review; it writes only with `--apply` and your go-ahead.
+6. Four phases kept (frontends and seed/probe stay separate).
+
+7. **Shared catalogue is a source, not a storefront (decided).** Parents never order a school-less product directly. Schools import from the shared catalogue (`POST /shop/products/import_from_shared/`) exactly as they import from distributors; the copy becomes the school's own listing. The hotfix rule (parent and guest orders only for active listings of one school) stands. This supersedes the "or to the shared catalogue" wording in section 5.
+8. **Import-first (decided).** Distributor and shared products reach /shop and /bookshop only after a school imports them. Imports must produce complete listings (variant, image, brand, category, cost, stock, tags).
+
+## 11. Hotfix already shipped (backend `fix/private-media`, merged into `feat/school-data-management`)
+
+- G7: parent order items must be active listings of the parent's own school; guest orders must be one school, non-shared, active.
+- G2/G3: suspended or unverified suppliers are hidden from school distributor catalogues, import, `sync_distributor_categories`, the anonymous storefront and `hero_items`; parent, guest and `SchoolOrder` creation reject them.
+- G6 (partial): `procurement` suppliers and stock are writable by school ADMIN only (reads stay authenticated). Purchase orders, items, goods received and assets are unchanged until the Procurement group exists (Phase 1/2).
+- Import hotfix: imports create a Default variant (stock from the supplier), copy the image, brand, cost price, tags and category; markup is validated (the old code crashed on every import). `import_from_shared` added. `backfill_imported_listings` (dry run default, `--apply`) repairs old imports. The public list now returns tags, levels, institution categories and distributor name.

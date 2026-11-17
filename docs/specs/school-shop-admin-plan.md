@@ -7,7 +7,7 @@ Ground rules for every phase: `makemigrations` only (data migrations hand-writte
 ## Phase 1: Foundations and approval backend (G1, G4, G5, G9, D1, D4)
 
 - **Migrations**
-  - `tenants`: `SchoolSettings.shop_enabled` (default False), `supplier_approval_delegated` (default False).
+  - `tenants`: `SchoolSettings.shop_enabled` (default False), `supplier_approval_delegated` (default False). Rule (D4): only the platform admin may set `shop_enabled` True; the school ADMIN may set it False only.
   - `distributor`: `SchoolSupplier` (school, distributor, status, requested_by, decided_by, decided_at, note; unique `(school, distributor)`; index on status).
   - `accounts`: data migration adding the `Procurement` group (like `0015`).
 - **Code**
@@ -26,6 +26,8 @@ Ground rules for every phase: `makemigrations` only (data migrations hand-writte
 
 ## Phase 2: School shop backend (G2, G3, G6, G7, G11-G14, D2, D3, D5-D8)
 
+**Already shipped as a hotfix** (see spec section 11): G7 own-school orders, G2/G3 suspension filtering and order blocking, G6 for suppliers and stock. Phase 2 builds on it (approval gate, `shop_enabled`, shared catalogue, remaining procurement models via the Procurement group) and keeps the hotfix tests green.
+
 - **Migrations:** `SchoolOrder.received_at`, `received_by` (generated). Optional index on `SchoolOrder(school, status, created_at)`.
 - **New app `schoolshop`** (no models): `views.py`, `services.py`, `reports.py`, `urls.py` mounted at `/api/v1/school-shop/` (and `/api/auth`-style prefix if the project mounts both, as for the other apps).
 - **Endpoints** (spec section 4): suppliers + request/decide + performance, catalogue + gated import, stock, purchase orders, sales orders, deliveries, receive, three reports with CSV.
@@ -35,7 +37,10 @@ Ground rules for every phase: `makemigrations` only (data migrations hand-writte
   - `SchoolOrderViewSet` create/update: supplier must be tradeable; items must belong to that supplier; school scoping unchanged.
   - `PublicProductViewSet` and cart/checkout/guest order creation: delist suspended or unverified or unapproved supply; variant must belong to the order's school or the shared catalogue; `shop_enabled` required (G3, G7). Failing test first for the cross-school order (G7).
   - `procurement` viewsets: write access to ADMIN and Procurement only; teachers and STAFF lose write access (G6); update `accounts/test_write_access.py` accordingly.
-  - Shared catalogue: `school IS NULL` products visible read-only to shop-enabled schools; writes platform-only (D3).
+  - Shared catalogue: `school IS NULL` products visible read-only to shop-enabled schools; writes platform-only (D3); shared items are an import source only (decision 7): parents never order them directly; `import_from_shared` already shipped.
+  - Suspension flag (D8): `supplier_suspended` on supplier rows and `SchoolOrder` serializers so schools see affected suppliers and in-flight orders; in-flight orders remain completable.
+  - **Bookshop/shop catalogue parity (root cause fix, see `reports/shop-plan-2.md`):** (1) **[shipped in hotfix 2]** `import_from_distributor` must create a `Default` `ProductVariant` (stock from the supplier's `available_stock`), copy `image`, `brand` (company name), `sku`, tags and set `applicable_levels` when mapped, so an imported product is complete the moment it exists; one-off `backfill_imported_listings` command (dry-run first) repairs existing variant-less/imageless imports. (2) Public product serializers always return a usable `variants[0]` (never empty) and expose `distributor_name`, `school` and `is_reseller_listing`. (3) One shared filter implementation on `/shop/public/` (`category`, `level`, `brand`, `min_price`, `max_price`, `q`, `school`) used by both pages, plus `GET /shop/public/facets/` (categories, brands, price bounds, counts) so /shop and /bookshop render identical filter options. (4) Replace the fixed 64-per-aisle cap by server-ranked results per aisle, with an `aisle` hint computed server-side from the category.
+  - `preapprove_school_suppliers` management command: `--dry-run` is the default and prints the full school/supplier list with evidence; `--apply` writes APPROVED rows (with audit log). Never run against production without your go-ahead.
 - **Tests:** per endpoint: scoping (Demo vs Rival), role matrix (ADMIN, Procurement, teacher, STAFF, parent, student, distributor, platform), delegation on/off, suspension override, receive adds stock once and is audited, performance and report numbers against a hand-computed fixture, CSV escaping, pagination `count`, parent storefront off and on, cross-school order rejected, in-flight orders survive suspension.
 - **Deliverable:** full backend; API documented in the report.
 
@@ -48,6 +53,11 @@ Ground rules for every phase: `makemigrations` only (data migrations hand-writte
   - Parent "Shop" page: school storefront, cart, checkout against the existing order/pay APIs; "shop not available" state.
   - Settings: shop on/off for ADMIN; delegation shown read-only to school users.
   - Platform-operator controls (set delegation) are **not** here (see below).
+- **distributor (bookshop and shop parity)**
+  - Add `/bookshop` to `components/GlobalHeader.tsx` main nav and mobile menu (and `Header.tsx`); `/shop` and `/bookshop` link to each other (a "Browse in 3D" button on /shop, "Browse as list" on /bookshop), and the active filters travel in the query string both ways.
+  - One filter module (`lib/catalogueFilters.ts`) and one `ProductCard` used by `/shop`, `/shop/[id]` and the 3D bookshop panels (`ui/ProductCard.jsx` becomes a thin wrapper); both pages read facets from `/shop/public/facets/` and send the same query params instead of filtering client-side over the full catalogue.
+  - Bookshop `normalise()` must stop using the product id as `variantId` (use `variants[0].id`, skip items without one). Filters (category, level, brand, price, search) apply to what is shelved and to search results; "no matches" state and a visible "N of M products" count.
+  - Bookshop shows an "unshelved" list for items its aisle rules drop (`NOT_SHELVED`, `Technology`, 64/aisle cap) so nothing from the catalogue is silently invisible.
 - **distributor**
   - `lib/auth.tsx`: `is_platform_admin` on `User`. `app/admin/layout.tsx` and `app/admin/products/new/page.tsx` guard on it only; school ADMIN redirected; remove the `SUPER_ADMIN` check.
   - Admin panel: Schools tab for the platform admin (list schools, toggle `supplier_approval_delegated`, view and decide school-supplier relationships). Sellers pages keep global verify/suspend.
