@@ -60,4 +60,3 @@ Console: no errors on the pages visited. Not clicked through in the UI this roun
 - `staff POST class-teachers/` by Finance/HR staff (non-primary rows) is allowed by the existing STAFF rule; tighten if unwanted.
 - `Enrollments.jsx` shows learner and class ids, not names (it was like that before).
 - Seed first name "Demo" makes supervisor text read "Demo Teacher2".
-- Throwaway Postgres container `pg_phase6` is still running locally (port 55432); remove with `docker rm -f pg_phase6`.
