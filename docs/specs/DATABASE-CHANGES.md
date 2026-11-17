@@ -109,3 +109,8 @@ Code changes with data/permission impact:
 
 Order on production: back up, `check_duplicates` (must report no student duplicates), `migrate`.
 
+
+## Phase 5 (classes)
+| Migration | Change | Reversible | Notes |
+|---|---|---|---|
+| `academics.0013_one_primary_supervisor` | Data (hand-written) + AddConstraint: per class, keeps the most recent primary `ClassTeacher` (highest id) and **demotes** the others to non-primary (printed, never deleted); then partial unique `(stream)` where `is_primary` | constraint yes, data no | Demoted teachers keep attendance/messaging scope. Run on production only after a backup. |
