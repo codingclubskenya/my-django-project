@@ -114,3 +114,31 @@ Order on production: back up, `check_duplicates` (must report no student duplica
 | Migration | Change | Reversible | Notes |
 |---|---|---|---|
 | `academics.0013_one_primary_supervisor` | Data (hand-written) + AddConstraint: per class, keeps the most recent primary `ClassTeacher` (highest id) and **demotes** the others to non-primary (printed, never deleted); then partial unique `(stream)` where `is_primary` | constraint yes, data no | Demoted teachers keep attendance/messaging scope. Run on production only after a backup. |
+
+
+## Release 2: complete production order (Phases 0 to 6, branch `feat/school-data-management`)
+
+Everything below is **not applied to production**. Migrations in this release, in apply order: `academics.0009` to `0013`, `accounts.0015` to `0024` (the `shop.0015_alter_product_image` that `migrate` also lists is an unrelated pending migration from `master`). Phase 6 adds **no migration**.
+
+| Phase | Migrations | Data effect | Can block the deploy |
+|---|---|---|---|
+| 0 | `academics.0009`-`0011` | class year text becomes a FK; blank becomes NULL | yes: a class year with no matching `SchoolAcademicYear` (`check_stream_years`) |
+| 1 | `accounts.0015`-`0017`, `academics.0012` | Principal/Registrar groups, `middle_name`, blank NEMIS/assessment numbers to NULL, `skipped_count` | no |
+| 2-3 | `accounts.0018`-`0022` | staff groups and national ids, parent profile and relationships | yes: duplicate staff national ids (`check_duplicates`) |
+| 4 | `accounts.0023`, `0024` | BOM/PA group; admission numbers trimmed, blank to NULL, unique per school | yes: duplicate admission numbers (`check_duplicates`) |
+| 5 | `academics.0013` | duplicate primary supervisors demoted (kept: highest id), then unique constraint | no (prints the demoted rows) |
+| 6 | none | | |
+
+Order on the server (as `deploy/deploy-release.sh <ref>` runs it, after the backup):
+1. Back up the database (the script aborts on an empty backup). Note the file name.
+2. `manage.py check_duplicates` (read-only; exit 1 lists duplicates per school; fix them first).
+3. `manage.py check_stream_years` (read-only; exit 1 lists unmatched class years).
+4. `manage.py ensure_school_years` (dry run), read the list for typos, then `ensure_school_years --apply` (add `--year 2026` to give every school that year), then `check_stream_years` again (must print OK).
+5. `manage.py check --deploy --fail-level ERROR` with `DJANGO_SETTINGS_MODULE=core.settings_production`.
+6. `manage.py repair_sites_history`, then `manage.py migrate --noinput`.
+7. Restart gunicorn, check `/api/healthz/`. Deploy the web frontend (`deploy/deploy-static.sh`) in the same window: the old frontend calls routes whose permissions changed (direct `enrollments/` writes now 403, `student-class-enrollments/` read-only).
+8. Add users to the Registrar / Principal / HR groups in Django admin.
+
+Rollback: restore the step 1 backup. The constraints and group rows are reversible, but 0010, 0013, 0017 and 0024 change data (see their rows above), so restore is the safe path.
+
+Rehearsal (2026-11-17): restored `school_mgmt-20261116-173238.dump` (prod, 2026-11-16 17:32) into a throwaway Postgres 16 and ran steps 2 to 6 with `core.settings_production`. All passed; see `reports/phase-6.md`. That dump has 0 classes, 0 learner profiles and 5 users, so the data migrations had nothing to convert; they are covered by the migration tests on Postgres instead.

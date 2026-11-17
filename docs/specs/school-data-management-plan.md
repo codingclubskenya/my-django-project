@@ -129,6 +129,8 @@ Paths are under `backend/` unless noted.
 ### Phase 6: Integration, hardening, docs
 - End-to-end test of scenarios 1–6 (include class list and BOM/PA group), audit coverage, export escaping review, full probe, `docs/specs/school-data-management-implementation.md`, frontend states and a local click-through with seed accounts only.
 
+Status (2026-11-17): done. Open items from Phase 5 fixed (Registrar reads learners and registers one; no direct `Enrollment` edits; modal error clears). Scenarios 1–6, audit coverage and CSV formula escaping are covered by `accounts/test_scenarios.py`; BOM/PA by `accounts/test_students.py`; class list by `academics/test_phase5.py`. Release 2 order and rehearsal are in `DATABASE-CHANGES.md`. Results: `reports/phase-6.md`. Implementation notes: `school-data-management-implementation.md`.
+
 ## 4. Scenario → phase map
 | Scenario | Phases |
 |---|---|
