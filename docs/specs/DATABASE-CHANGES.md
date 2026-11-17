@@ -100,3 +100,12 @@ Code changes with data/permission impact:
 - `parent-learner-links`: read for any signed-in user (parent sees only their own links, as before); write for ADMIN, Registrar, Principal. Registrar/Principal list all links of their school. `relationship` must be one of the four codes (400 otherwise).
 - `accounts/parents.py`: `match_or_create_parent(school, national_id, phone, email)`: national ID, then phone (normalised to 254...), then email, always inside the school. A phone/email match whose national ID differs raises `ParentConflict` (never merged). Fills blank profile fields only. New parents get an unusable password; nothing is emailed.
 - Old `users/bulk_import` now stores a valid relationship code (`Parent` becomes GUARDIAN); the rest of it is replaced in Phase 4.
+
+## Phase 4 (students)
+| Migration | Change | Reversible | Notes |
+|---|---|---|---|
+| `accounts.0023_seed_bompa_staff_group` | Data (hand-written): adds a default `BOM/PA` StaffGroup to every school that already has staff groups | no-op reverse | Idempotent, case-insensitive; schools with no groups get it lazily with the other defaults. |
+| `accounts.0024_student_admission_unique` | Data + AddConstraint: trims admission numbers, blank to NULL, **aborts listing duplicates** (per school, case-insensitive), then unique `(school, lower(admission_number))` where not NULL | constraint yes, data no | Run `check_duplicates` first. `StudentProfile.save()` now trims and stores blank as NULL. |
+
+Order on production: back up, `check_duplicates` (must report no student duplicates), `migrate`.
+
