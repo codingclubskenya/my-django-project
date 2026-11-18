@@ -118,7 +118,7 @@ Order on production: back up, `check_duplicates` (must report no student duplica
 
 ## Release 2: complete production order (Phases 0 to 6, branch `feat/school-data-management`)
 
-Everything below is **not applied to production**. Migrations in this release, in apply order: `academics.0009` to `0013`, `accounts.0015` to `0024` (the `shop.0015_alter_product_image` that `migrate` also lists is an unrelated pending migration from `master`). Phase 6 adds **no migration**.
+Everything below is **not applied to production**. Migrations in this release, in apply order: `academics.0009` to `0014`, `accounts.0015` to `0025` (the `shop.0015_alter_product_image` that `migrate` also lists is an unrelated pending migration from `master`). Phase 6 adds no migration; Phase 6b adds `accounts.0025` and `academics.0014`.
 
 | Phase | Migrations | Data effect | Can block the deploy |
 |---|---|---|---|
@@ -128,6 +128,7 @@ Everything below is **not applied to production**. Migrations in this release, i
 | 4 | `accounts.0023`, `0024` | BOM/PA group; admission numbers trimmed, blank to NULL, unique per school | yes: duplicate admission numbers (`check_duplicates`) |
 | 5 | `academics.0013` | duplicate primary supervisors demoted (kept: highest id), then unique constraint | no (prints the demoted rows) |
 | 6 | none | | |
+| 6b | `accounts.0025`, `academics.0014` | phones stored as `+254...`; class names trimmed, unique per school+grade ignoring case | yes: two parents that would share one phone, class names differing only by case (`check_duplicates` lists both; the migrations abort with the same list) |
 
 Order on the server (as `deploy/deploy-release.sh <ref>` runs it, after the backup):
 1. Back up the database (the script aborts on an empty backup). Note the file name.
@@ -142,3 +143,5 @@ Order on the server (as `deploy/deploy-release.sh <ref>` runs it, after the back
 Rollback: restore the step 1 backup. The constraints and group rows are reversible, but 0010, 0013, 0017 and 0024 change data (see their rows above), so restore is the safe path.
 
 Rehearsal (2026-11-17): restored `school_mgmt-20261116-173238.dump` (prod, 2026-11-16 17:32) into a throwaway Postgres 16 and ran steps 2 to 6 with `core.settings_production`. All passed; see `reports/phase-6.md`. That dump has 0 classes, 0 learner profiles and 5 users, so the data migrations had nothing to convert; they are covered by the migration tests on Postgres instead.
+
+Rehearsal 2 (2026-11-18): fresh dump `school_mgmt-20261118-081130.dump` (backup.sh on the server, 08:11), same steps plus Phase 6b, all passed; see `reports/phase-6b.md`. Run with `DB_*` variables (production settings ignore `DATABASE_URL`).
