@@ -4,7 +4,7 @@ Branch `feat/ui-refresh` (frontend), from `feat/school-data-management`. Directi
 
 ## What changed
 - **Tokens, defined once** in `src/index.css` (`:root` + Tailwind `@theme`): orange `#E63B00` (brand, highlights, large text), button orange `#CC3300` with hover `#B32D00` (white text, AA), navy `#0B1F3A`, body text `#202124`, muted `#5A6170`, line `#E3E6EC`, page `#F4F5F7`, secondary-button hover `#E8EBF0`, and status colours (ok / warn / danger, each with a soft background) reserved for meaning. Components use the generated names (`bg-brand-button`, `text-brand-muted`, `bg-status-warnSoft`...). Existing `brand-*` names keep working.
-- **Fonts:** Inter 400-700 for body; headings use `--heading-font`. Aptos is gone. Both heading options are live on the Dashboard header ("Headings: Space Grotesk | Inter semibold"); the choice is remembered in the browser. Pick one and I remove the toggle.
+- **Fonts:** Inter 400-700 for body; headings use `--heading-font`. Aptos is gone. Decision: **Space Grotesk** for headings (the Dashboard toggle was removed; the Inter-semibold screenshot below is the rejected option).
 - **Page:** the gradient background is now flat `#F4F5F7`; keyboard focus ring is 2px navy everywhere.
 - **Buttons:** white-text buttons across 51 files moved from `#E63B00` / blue / teal / green / indigo to `#CC3300`. The amber "Bulk Import" style buttons became secondary (grey, navy text, thin border). Red (delete) is unchanged because it carries meaning.
 - **Nav:** still navy; active item is `#CC3300`; hover is a white wash, not orange; section labels are 12px with tighter tracking and more contrast; role pill and icon tiles are neutral; width capped at 288px (was 384px at xl).
