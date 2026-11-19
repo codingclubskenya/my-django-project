@@ -56,6 +56,8 @@ Discovery only. **No fix is written, nothing is deployed.** Repro tests are in `
 6. Tests: assign/revoke, ADMIN-only, HR refused, Finance forces STAFF, another school's staff 404, audit rows, unknown group name 400.
 
 ## Bug 3: phone login
+**Closed 2026-11-19: staff phone sign-in works on production (confirmed by the owner); no fix is needed for the reported case.** The code gaps below (phone sync on edit, copy on linking at import, `last_login`, shared-number warning) were still fixed in the same release.
+
 **Checked, all pass or reproduce as noted** (`Bug3PhoneLogin`):
 - phone from the staff record works right after Create login (typed `0712 345 678`, `+254...`): passes;
 - **fails:** phone edited on the staff record later is not copied to the `User`; the new number gets 401, the old one still works (`serializers.py:64` / no sync, same cause as bug 1);
@@ -118,7 +120,7 @@ Checked on the branch (code diff, plus the dashboard at desktop, 820 px and 390 
 7. Rollback: backend and frontend are separate steps with the printed rollback commands; the invitation email is the only external effect.
 
 ## Decisions needed from you
-1. **Bug 3:** the exact failing case (staff, what was typed, what the screen said).
+1. ~~**Bug 3:** the exact failing case~~ closed: works on production.
 2. **Mail:** which service sends it (a transactional SMTP provider such as Brevo/Mailgun/SendGrid/Amazon SES, or SMTP of an existing mailbox such as Google Workspace/Zoho), sender address and domain. Until this is set, password reset and invitations cannot work.
 3. **Create login email:** set-password link (recommended) or temporary password in the email?
 4. **Guard:** only the school ADMIN changes a linked login's email/phone and assigns access roles (recommended), or HR too for TEACHER/STAFF logins without roles?
@@ -128,3 +130,6 @@ Checked on the branch (code diff, plus the dashboard at desktop, 820 px and 390 
 
 ## Not changed
 No code outside the uncommitted repro test file; nothing deployed; no email sent; production touched read-only (counts and booleans only). The local frontend was switched to `feat/ui-refresh` for the layout check and is back on `feat/school-data-management`.
+
+## Result (2026-11-19, after the build)
+Built per the approved decisions; Finance/HR are **refused** (400, shown in the Access roles modal) for a Teacher login rather than converting it. Postgres 16 rehearsal: 844 tests OK (incl. `test_repair_sites_history`). Browser pass on a throwaway Postgres + local dev servers: `staff-login-browser/` (Access roles refusal, Create login with invite, email/phone edit, phone and tablet layouts, phone drawer). Mail was captured with the console backend, never a real server. Known edge: changing a login's email invalidates a still-unused invitation link (Django's token includes the email); resend by creating a reset.

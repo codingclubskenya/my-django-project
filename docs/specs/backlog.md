@@ -19,3 +19,19 @@ Options to evaluate (not decisions):
 - All roles: TOTP or SMS second factor (mandatory for ADMIN and for Finance/HR/Principal), "new sign-in" notifications, session list with revoke, shorter refresh lifetime, `last_login` surfaced to admins.
 - Account recovery that does not depend on a single email: school-admin-assisted reset with an audit trail (exists for temporary passwords) plus rate-limited self-service.
 - Data hygiene: report accounts that cannot sign in by any route; make real contact details a requirement for parent records.
+
+## Next release spec: Parent & student sign-in (decided 2026-11-19, not built)
+Replaces the "options to evaluate" above for these two roles; the SMS/OTP, second-factor and session-list items stay open.
+
+**Parents**
+- Sign in with **phone or email + their own password**, through the same screen and `resolve_login_account` path as staff. Same lockout rules (per account, `lockout.gate`), phone normalised (`core.phone`).
+- The first password is set from a link (same uid+token flow as the staff invitation; needs mail from production) or by the school registrar generating one. Parents with a placeholder email and no phone cannot be reached: the data-hygiene report in the list above comes first.
+
+**Students**
+- Sign in with **admission number + a password the school sets** (school admin or registrar sets or resets it; temporary, forced change at first use). **Never the parent's password, never the parent's phone**: one phone maps to a parent and all siblings, and a child's failed tries would lock the parent out.
+- Lockout is keyed **per student account**; a parent cannot see, set or change the child's password (no parent endpoint touches the learner `User`).
+- Every school-side set/reset writes an `AuditLog` row (who, which learner, no password value), as the staff login changes do.
+
+**Identifying the school** (admission numbers are unique only per school). Recommendation, the simplest option: a required **school code** field on the Student tab of the login page (the API already accepts `school_code`; today it is optional), remembered in the browser after the first successful sign-in. School admins print the code on the learner sheet. A wrong code or number gives the same generic error. Not chosen for now: a school picker (lists every tenant publicly) and per-school subdomains (DNS and nginx work); a `/s/<code>` login link that prefills the field is a cheap later addition.
+
+**Acceptance sketch:** two schools with the same admission number sign in separately; a child's lockout leaves the parent signed-in-able; a registrar of school A cannot reset a learner of school B (404); parents have no route to the learner password; audit rows exist for each reset.
