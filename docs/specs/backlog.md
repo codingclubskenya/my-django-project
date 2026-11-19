@@ -35,3 +35,17 @@ Replaces the "options to evaluate" above for these two roles; the SMS/OTP, secon
 **Identifying the school** (admission numbers are unique only per school). Recommendation, the simplest option: a required **school code** field on the Student tab of the login page (the API already accepts `school_code`; today it is optional), remembered in the browser after the first successful sign-in. School admins print the code on the learner sheet. A wrong code or number gives the same generic error. Not chosen for now: a school picker (lists every tenant publicly) and per-school subdomains (DNS and nginx work); a `/s/<code>` login link that prefills the field is a cheap later addition.
 
 **Acceptance sketch:** two schools with the same admission number sign in separately; a child's lockout leaves the parent signed-in-able; a registrar of school A cannot reset a learner of school B (404); parents have no route to the learner password; audit rows exist for each reset.
+
+## Next-release fixes from the UI smoke test (2026-11-19, none block Release 4)
+Source: `reports/ui-smoke-2026-11-19.md` and its baseline/rerun reports (compared against production backend `b31c743`, frontend `745e978`). All are OLD unless marked NEW.
+
+- **`Clubs.jsx:31` "destroy is not a function"** (teacher `/clubs`, page error): `useEffect(load, [])` where `load` is async, so React receives a promise as the cleanup. Wrap it: `useEffect(() => { load(); }, [])`.
+- **Hide what the role cannot see instead of calling the API.** Finance/HR get correct 403s but the pages still call: `/health` (`health/records`, `health/visits`), `/discipline` (`discipline/records`, `discipline/appeals`), `/parent-teacher-meetings` (`parent-meetings/meetings`, `parent-meetings/notes`), `/website-builder` (`website/config`), and the fees report (`fees/invoices/report`). Gate on role before fetching, or drop the links from the sidebar for those roles.
+- **`website/config` first-visit race** (`backend/website/views.py:80-90`): `.first()` then `.create()` on `WebsiteConfig` for a school; two concurrent first GETs can raise an IntegrityError and return 500 (seen intermittently for admin, on production too). Use `get_or_create` (or catch the integrity error and re-read). Not reproduced with a traceback yet.
+- **Phone layout (390px):**
+  - `/health`: "Create Record" button clipped at x -12 (NEW, likely from the `1a27ccc` header wrap).
+  - Teacher dashboard: the floating "AI Teacher Assist" button overlaps two list buttons (NEW with the UI refresh).
+  - `/payroll`: form inputs overlap by about 10px.
+  - Clipped tables on `/teachers`, `/enrollments`, `/schools`, `/shop/orders` (wrap them in a horizontal scroller or stack rows on phone).
+- Smaller, also old: React warning "`value` without `onChange`" on `/students`; the 402 on teacher `/courses` (an external resource, not investigated).
+- Harness note: `scripts/ui_smoke.py` re-runs all of this with one command (`python3 scripts/ui_smoke.py`); pages that fetch `/api/...` on their own origin only work because the script mirrors nginx's `/api` forwarding.
