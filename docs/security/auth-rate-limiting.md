@@ -33,6 +33,7 @@ How sign-in is protected, what an administrator sees, and which settings can be 
 | `API_PASSWORD_RESET_RATE` | 30/hour | reset request and confirm, per IP |
 | `API_CHANGE_PASSWORD_RATE` | 30/hour | change-password requests per user |
 | `REDIS_CACHE_URL` | required in production | e.g. `redis://localhost:6379/1`. Must be a different database number from `CELERY_BROKER_URL` (`/0`). Production refuses to start without it |
+| `CELERY_TASK_ALWAYS_EAGER` | off | local development only: `1` runs the reset-email task inside the request when there is no Redis or worker |
 | `NUM_PROXIES` | 1 | proxies in front of Django that append to X-Forwarded-For: **nginx only = 1**, even behind Cloudflare (see "Client IP behind Cloudflare"). Wrong value lets clients spoof their IP or shows every visitor as one proxy |
 
 Change a value in the server `.env`, restart gunicorn. Test it first with the throwaway-container suite (`accounts.test_auth_rate_limit`).

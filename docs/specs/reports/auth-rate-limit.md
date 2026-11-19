@@ -48,56 +48,137 @@ Also covered: phone login (unique, shared, inactive/passwordless excluded), stud
 - On SQLite three `repair_sites_history` tests error (`TRUNCATE ... CASCADE`); they did so before this work and pass on Postgres.
 - Frontend: touched files parse with esbuild; not exercised in a browser this time.
 
-## Pre-deploy checklist (you run these; nothing is deployed)
-All on the server unless stated. SSH needs your approval each time; none of this was run.
+## Browser pass (local dev servers, seed accounts; 2026-11-19)
+| Path | Result |
+|---|---|
+| Login page | Field reads "Email or phone number" |
+| Wrong password | Shows the server's message, form keeps its values. **Bug found and fixed:** the axios 401 interceptor treated a failed sign-in as an expired token, tried a refresh and reloaded the page (message lost). Sign-in endpoints now skip it |
+| Lockout | Throwaway identifier, 5 wrong attempts then the 6th: "Too many attempts. Please wait N minutes". **Bug found and fixed:** the minutes were missing because CORS hid `Retry-After` from the SPA (`CORS_EXPOSE_HEADERS`, test added); a re-attempt later showed "13 minutes", counting down |
+| Email sign-in | admin: dashboard |
+| Phone sign-in | teacher by `0722 000 111` (spaces on purpose): teacher dashboard |
+| Student tab | wrong PIN: "Invalid credentials"; right PIN: student dashboard |
+| Temporary password | login redirects to the change-password page; wrong current password shows "Current password is incorrect"; right one lands on the dashboard (the request takes about 4 s on the dev machine: the password is hashed twice, once for the limit check and once in the serializer; fine, but noted) |
+| Forgot password | unknown address: the normal "If an account exists..." confirmation. **Found:** with no Redis the request hung about 19 s retrying the broker and result store; now `ignore_result` + short broker timeouts give about 2 s, and `CELERY_TASK_ALWAYS_EAGER=1` runs tasks inline in dev |
+Not done in the browser: `/admin/login/` (covered by tests; the page is Django's own form).
+The local dev database also needed `migrate` for `accounts.0026` first: an unmigrated database gives a 500 on login (the table is missing). The deploy script migrates before restarting.
 
-**A. Before `deploy-release.sh` (one time)**
-1. **Redis:** confirm it is running (`systemctl is-active redis-server`, `redis-cli ping`).
-2. **`.env`** (do not paste it anywhere): add `REDIS_CACHE_URL=redis://localhost:6379/1`. Check `CELERY_BROKER_URL` is `.../0` or unset (default `/0`); the two database numbers must differ. Also confirm `NUM_PROXIES=1` or unset (default 1).
-3. **Install the Celery unit** (sudo; paths assume the current layout, adjust if yours differ):
-   ```
-   sudo cp /home/devops/home/personal/personalweb/epk/deploy/epk-celery.service /etc/systemd/system/epk-celery.service   # after the release is checked out, or copy from your laptop
-   sudo systemctl daemon-reload
-   sudo systemctl enable epk-celery
-   ```
-   Do not start it yet: the hand-started worker is still running. `deploy-release.sh` stops that worker warmly (pidfile `/tmp/celery.pid`) and then starts the unit.
-4. **sudoers:** the deploy user needs to restart the unit without a password, like it already does for gunicorn. Add (with `sudo visudo -f /etc/sudoers.d/epk-deploy`; adjust to the existing line for gunicorn): `devops ALL=(root) NOPASSWD: /bin/systemctl restart epk-celery`.
-5. `mkdir -p /home/devops/home/personal/personalweb/epk/logs` (the script does it; the unit logs to `logs/celery.log`).
-6. Fresh DB backup exists (the script takes one first; `backup.sh` if you want your own).
-7. `manage.py check_duplicates` with production settings: read the new "login phone" lines (users sharing a number can only sign in by email).
-8. Release order stays: backend (`deploy-release.sh`), then frontend (`deploy-static.sh`, STAGE_ONLY first), same window. The old frontend still works (it sends `email`; the backend accepts both fields).
+## Rehearsal on a fresh prod dump (2026-11-19)
+Fresh dump taken with the server's own `~/deploy-scripts/backup.sh` (`school_mgmt-20261119-123006.dump`, 1.08 MB), copied to a throwaway directory, restored into a throwaway `postgres:16` next to a throwaway `redis:7`, run with `core.settings_production`. Checked that the run really used the restored Postgres (my first pass used the local SQLite because a dev `.env` supplies `DB_ENGINE`: always set `DB_ENGINE` explicitly). Containers, dump and logs deleted afterwards.
+| Step | Result |
+|---|---|
+| Restore | OK; 6 users, accounts at `0025_phone_canonical` |
+| `check_duplicates` | all OK, including the new "login phone" report (0 shared) |
+| `check --deploy --fail-level ERROR` | passes (production settings with `REDIS_CACHE_URL=.../1` and broker `.../0`) |
+| `repair_sites_history`, `migrate` | `accounts.0026_authlockout` applied, nothing else; `makemigrations --check`: no changes |
+| Lockout on real Postgres + real Redis | 5 x 401, then 429 with `Retry-After` 898; stored IP is the trusted last `X-Forwarded-For` hop (a forged first hop ignored) |
+| Identity on prod data | for every account email in any letter case gives one key; phone gives the same key as email for both users who have a phone; no shared phones |
+| Password reset on prod data | known address (stored case and upper-case typed): 200 and exactly one email; unknown: same 200 and no email; the emailed link completes through `password/reset/confirm/` and the new password signs in (also with the email typed in upper case) and resets the counter |
+| `purge_auth_lockouts` | ran, deleted the idle row |
+| Celery worker with the unit's command (`python -m celery -A core worker`) | starts, `inspect ping` answers (the deploy script's check), both reset tasks registered, a queued reset was executed by the worker (one email for the known address, none for the unknown one), SIGTERM gave a warm shutdown |
+| Auth, reset, security, accounts, staff, students tests on Postgres | 162 OK |
+Things the prod copy shows (not changed): 2 of the 6 accounts have a placeholder email without a dot in the domain (so `Enter a valid email address.` for a reset request) and an unusable password, so they can sign in neither by email, phone nor reset; one placeholder address has capitals. If those are parent accounts, parents imported without a real email have no way in today: worth a decision separate from this release.
 
-**A2. Cloudflare real client IP (nginx; do it before the deploy, it is independent of the release)**
-The API is behind Cloudflare, so with `NUM_PROXIES=1` alone every request would look like a Cloudflare address and the per-IP limits, lock records and audit log would be wrong. Fix is in nginx (see "Client IP behind Cloudflare" in `docs/security/auth-rate-limiting.md`); Django keeps `NUM_PROXIES=1` and trusts no header itself. I could not reach the server while preparing this, so the live vhosts have **not** been inspected: step 1 does that.
-1. **Inspect (read-only):** `nginx -V 2>&1 | grep -o with-http_realip_module` must print the module name (it is built in by default; if empty, stop and tell me). List the vhosts that proxy to gunicorn: `sudo nginx -T 2>/dev/null | grep -nE "server_name|proxy_pass|X-Forwarded-For|real_ip"`. Each such `server { }` (api.codingclubskenya.com, and the apex codingclubskenya.com for `/api/` and `/admin/`) must contain `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`; add it if not.
-2. **Backup:** `sudo cp -a /etc/nginx /etc/nginx.bak-$(date +%Y%m%d-%H%M)`.
-3. **Patch:** install the snippet and include it in each of those server blocks:
-   ```
-   sudo mkdir -p /etc/nginx/snippets
-   sudo cp /home/devops/home/personal/personalweb/epk/deploy/nginx/snippets/cloudflare-realip.conf /etc/nginx/snippets/cloudflare-realip.conf
-   # in each server { } that proxies to gunicorn, next to the other includes:
-   #     include /etc/nginx/snippets/cloudflare-realip.conf;
-   ```
-   (or copy the file from your laptop; the checkout on the server only has it after the release is checked out.)
-4. **Test and reload (your sudo):** `sudo nginx -t` must say "syntax is ok / test is successful", then `sudo systemctl reload nginx`. If `nginx -t` fails, restore from the backup copy; nothing is reloaded until it passes.
-5. **Verify the real IP (wrong login from your laptop):** note your public IP (`curl -s https://ifconfig.me`). Send a wrong sign-in for a throwaway address (not a real account; it only creates a harmless counter row):
-   `curl -s -X POST https://api.codingclubskenya.com/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"nobody-test@example.com","password":"x"}'` (expect 401).
-   Then in Django admin > Accounts > Auth lockouts, the row's **last IP** must be your public IP, not a Cloudflare one (`104.16.*`, `172.64.*`, `162.158.*`, ...). After the release is live, the same address also appears in the `security.auth` log (`event=lockout|denied|ip_limit ... ip=`; those lines only appear on lockout or limit, so the Auth lockouts page is the quick check) and in new audit-log rows.
-6. **Verify spoofing is ignored (optional, from your laptop, straight to the origin so it is not via Cloudflare):** `curl -s --resolve api.codingclubskenya.com:443:213.199.41.219 -X POST https://api.codingclubskenya.com/api/auth/login/ -H 'CF-Connecting-IP: 1.2.3.4' -H 'X-Forwarded-For: 5.6.7.8' -H 'Content-Type: application/json' -d '{"email":"nobody-test2@example.com","password":"x"}'` then check that row's last IP: it must be your laptop's IP, never `1.2.3.4` or `5.6.7.8`.
-7. **Rollback:** restore `/etc/nginx` from the backup, `sudo nginx -t`, `sudo systemctl reload nginx`. Refresh of the ranges later: see the snippet header and the guide.
+## Server steps (exact commands; you run them, nothing here was run for you)
+Facts I checked read-only on 2026-11-19: Redis active and answering, `db0` holds the Celery broker (3 keys), no password; `.env` has no `REDIS_CACHE_URL`, has `CELERY_BROKER_URL` ending `/0`, no `NUM_PROXIES` (production default is 1, correct); live unit is `gunicorn.service` (active); **`epk.service` is also enabled but inactive** (see "Cleanup"); `devops` needs a sudo password; nginx 1.24.0 with the realip module; vhost files `codingclubskenya-{api,deheus-api,deheus,learningpack,main,pma}.conf` (contents need sudo to read); the daily backup cron exists; `~/deploy-scripts/{deploy-release,deploy-static,backup}.sh` are copies of the repo's scripts (this release changes `deploy-release.sh`). I also ran `git fetch origin` in the server's `epk` checkout so `origin/feat/school-data-management` (b31c743) is available for `git show`; it changes no files.
 
-**B. During**
-9. `deploy-release.sh <ref>` runs: preflight (checks `REDIS_CACHE_URL` and the unit), backup, migrate (`accounts.0026_authlockout`, additive), restart gunicorn, health, then stops the hand-started worker and restarts `epk-celery`, pings it. Reset emails queued in the minute between the gunicorn restart and the worker restart may be lost (old worker does not know the new task); users can simply ask again.
+All blocks run on the server as `devops`. Set once per shell:
+```
+APP=/home/devops/home/personal/personalweb/epk
+REF=origin/feat/school-data-management     # use the tag or sha you actually release
+cd $APP && git fetch origin && git rev-parse --short $REF
+```
 
-**C. After (read-only checks I can run for you)**
-10. `/api/healthz/` 200; `systemctl status epk-celery` active; `journalctl -u epk-celery -n 20`.
-11. Five wrong sign-ins for a throwaway address return 401 then 429 with `Retry-After`; `accounts_authlockout` has the row (Django admin > Auth lockouts).
-12. Password reset for a real test mailbox arrives (worker + SMTP); an unknown address returns the same 200.
-13. `/admin/login/`: a locked admin sees the normal "incorrect" form message, not an error page.
-14. Rollback: restore the backup and previous checkout as the script prints; the unit can stay (it just runs the old code). If Redis is the problem, production will not start: fix `REDIS_CACHE_URL` rather than reverting.
+**1. `.env`: REDIS_CACHE_URL (no sudo).** Redis database 1 for the cache, 0 stays Celery's.
+```
+umask 077; cp -a $APP/.env ~/backups/env-$(date +%Y%m%d-%H%M).bak      # secrets: keep it 600
+grep -c '^REDIS_CACHE_URL=' $APP/.env                                 # expect 0
+printf '\nREDIS_CACHE_URL=redis://localhost:6379/1\n' >> $APP/.env
+grep -nE '^(REDIS_CACHE_URL|CELERY_BROKER_URL)=' $APP/.env | sed -E 's#(redis://)[^@/]*@#\1***@#'   # cache ends /1, broker ends /0
+redis-cli -n 1 ping                                                   # PONG
+```
+Rollback: restore the `.env-*.bak` copy. (Nothing reads the new line until the release; the old code ignores it.)
+
+**2. Celery unit (sudo).** The file is in the release, not yet checked out, so read it from git, look at it, verify it, then install. Do not start it (the hand-started worker is still running; the deploy script stops that worker warmly and starts the unit).
+```
+git -C $APP show $REF:deploy/epk-celery.service > /tmp/epk-celery.service
+cat /tmp/epk-celery.service                                           # read it: User=devops, WorkingDirectory, ExecStart, Restart=on-failure
+systemd-analyze verify /tmp/epk-celery.service                        # no output = fine (a missing-executable note is not expected)
+sudo install -m 0644 -o root -g root /tmp/epk-celery.service /etc/systemd/system/epk-celery.service
+sudo systemctl daemon-reload
+sudo systemctl enable epk-celery                                      # enabled, NOT started
+systemctl is-enabled epk-celery; systemctl is-active epk-celery       # enabled / inactive
+rm /tmp/epk-celery.service
+```
+Rollback: `sudo systemctl disable epk-celery && sudo rm /etc/systemd/system/epk-celery.service && sudo systemctl daemon-reload`.
+
+**3. sudoers rule for restarting that unit without a password (sudo; optional, the deploy script also works if you type your password).** Validated before it goes live; a bad file in `/etc/sudoers.d` can lock out sudo, so it is checked twice.
+```
+printf '%s\n' 'devops ALL=(root) NOPASSWD: /usr/bin/systemctl restart epk-celery, /usr/bin/systemctl status epk-celery' > ~/epk-celery.sudoers
+sudo visudo -cf ~/epk-celery.sudoers                                  # must say: parsed OK
+sudo install -m 0440 -o root -g root ~/epk-celery.sudoers /etc/sudoers.d/epk-celery
+sudo visudo -c                                                        # whole config: all files parsed OK
+sudo -l | grep epk-celery                                             # the rule shows up
+rm ~/epk-celery.sudoers
+```
+If `visudo -cf` does not say `parsed OK`, stop and do not run the `install` line. Rollback: `sudo rm /etc/sudoers.d/epk-celery`.
+
+**4. The deploy script itself (no sudo).** The release changes `deploy-release.sh`, but the one you run is the copy in `~/deploy-scripts/`, which still has the old Celery logic. Replace it from the release before running it:
+```
+git -C $APP show $REF:deploy/deploy-release.sh > /tmp/deploy-release.new
+diff ~/deploy-scripts/deploy-release.sh /tmp/deploy-release.new       # expect: CELERY_SERVICE, REDIS_CACHE_URL preflight, systemctl restart of the unit
+cp -a ~/deploy-scripts/deploy-release.sh ~/deploy-scripts/deploy-release.sh.bak-$(date +%F)
+install -m 0755 /tmp/deploy-release.new ~/deploy-scripts/deploy-release.sh && rm /tmp/deploy-release.new
+bash -n ~/deploy-scripts/deploy-release.sh && echo syntax ok
+```
+Rollback: copy the `.bak-` file back.
+
+**5. nginx: Cloudflare real client IP (sudo).** `real_ip` is built into your nginx (`with-http_realip_module`). First see which vhosts talk to gunicorn (I could not read them):
+```
+sudo grep -nE 'server_name|proxy_pass|X-Forwarded-For|real_ip|include .*snippets' /etc/nginx/sites-available/*
+```
+The ones to patch are the server blocks that `proxy_pass` to gunicorn for `api.codingclubskenya.com` and for the apex `codingclubskenya.com` (`/api/`, `/admin/`): most likely `codingclubskenya-api.conf` and `codingclubskenya-main.conf`, but go by what that output shows. Each of them must contain `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` (add it next to the other `proxy_set_header` lines if missing).
+```
+TS=$(date +%Y%m%d-%H%M)
+sudo cp -a /etc/nginx /etc/nginx.bak-$TS                              # backup of the whole config
+git -C $APP show $REF:deploy/nginx/snippets/cloudflare-realip.conf | sudo tee /etc/nginx/snippets/cloudflare-realip.conf >/dev/null
+grep -c '^set_real_ip_from' /etc/nginx/snippets/cloudflare-realip.conf   # 22 (15 IPv4 + 7 IPv6)
+sudoedit /etc/nginx/sites-available/codingclubskenya-api.conf         # in each gunicorn-facing server { }, after server_name add:
+                                                                      #     include /etc/nginx/snippets/cloudflare-realip.conf;
+sudoedit /etc/nginx/sites-available/codingclubskenya-main.conf        # same line (only if this one proxies to gunicorn)
+sudo nginx -t                                                         # must end: syntax is ok / test is successful
+sudo systemctl reload nginx                                           # only after nginx -t passed
+```
+Verify (this works before the backend release): from your laptop `curl -s -o /dev/null https://api.codingclubskenya.com/api/healthz/ && curl -s https://ifconfig.me; echo`, then on the server `sudo tail -n 3 /var/log/nginx/access.log`: the first field of the healthz line must be your public IP, not a Cloudflare address (`104.16.*`, `172.64.*`, `162.158.*`, ...). IPv6 laptops show an IPv6 address; that is fine.
+Rollback if `nginx -t` fails or anything looks wrong:
+```
+sudo rm -f /etc/nginx/snippets/cloudflare-realip.conf
+sudo cp -a /etc/nginx.bak-$TS/sites-available/. /etc/nginx/sites-available/
+sudo nginx -t && sudo systemctl reload nginx
+```
+(If you edited nothing yet, `nginx -t` fails only on the unused snippet's absence; nothing is reloaded unless it passes.) Refresh of the ranges later: header of the snippet and `docs/security/auth-rate-limiting.md`.
+
+**6. Release (no sudo for me; the script asks for your password at the two `systemctl restart` lines unless step 3 is in place for the Celery one).**
+```
+~/deploy-scripts/deploy-release.sh <REF>       # backend: preflight (REDIS_CACHE_URL, unit), backup, migrate 0026, gunicorn, health, Celery unit
+STAGE_ONLY=1 ~/deploy-scripts/deploy-static.sh frontend feat/school-data-management   # then tell me, I show the summary
+```
+Then I swap the frontend and run the checks (healthz, `systemctl status epk-celery`, 5 wrong sign-ins for a throwaway address give 401 then 429 and the Auth lockouts "last IP" is yours, reset email arrives, anonymous create-login 401).
+
+**7. Purge cron (after the release, no sudo).** `purge_auth_lockouts` only exists once the release is checked out.
+```
+crontab -l > ~/crontab.bak-$(date +%F)                                # keep the current one
+( crontab -l; echo '15 3 * * * cd /home/devops/home/personal/personalweb/epk && DJANGO_SETTINGS_MODULE=core.settings_production venv/bin/python manage.py purge_auth_lockouts --hours 24 >> logs/purge_auth_lockouts.log 2>&1' ) | crontab -
+crontab -l                                                            # the backup line (02:30) and this one (03:15)
+cd $APP && DJANGO_SETTINGS_MODULE=core.settings_production venv/bin/python manage.py purge_auth_lockouts --hours 24   # run once by hand: "Deleted N idle lockout row(s)."
+```
+Rollback: `crontab ~/crontab.bak-<date>`.
+
+**Cleanup worth doing (separate from this release, your call).** `epk.service` is enabled but inactive while `gunicorn.service` serves; after a reboot both could start and fight over `epk.sock`. `systemctl cat gunicorn epk | grep -E 'ExecStart|bind'` to compare, then `sudo systemctl disable epk` for the one you do not use.
+
+**Order in one line:** 1 `.env` -> 2 unit -> 3 sudoers -> 4 script copy -> 5 nginx (verify real IP) -> 6 release + frontend -> 7 cron.
 
 ## Limits
-- The Cloudflare nginx change is prepared but **not applied or verified on the server** (ssh timed out); steps A2 above.
+- The Cloudflare nginx change is prepared but **not applied on the server**: I cannot read the vhosts without sudo, so step 5 starts with a read of them.
 - An account lock lets someone who knows an email lock that person out for 15 minutes (plan, section 4). Admins can unlock; it is never permanent.
 - `anon:` counter rows are kept until purged: run `purge_auth_lockouts` from cron (not scheduled; Celery beat is not running in production).
 - Sentry or log-based alerting on `security.auth` is not configured; the log lines are there to alert on.

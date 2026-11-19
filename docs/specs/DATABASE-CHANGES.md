@@ -149,11 +149,11 @@ Rehearsal 2 (2026-11-18): fresh dump `school_mgmt-20261118-081130.dump` (backup.
 ## Release 3: authentication rate limiting (branch `feat/school-data-management`)
 New table `accounts_authlockout` (`accounts.0026_authlockout`). Additive only; no data changes. Details and the one-time server steps: `reports/auth-rate-limit.md`; administrator guide: `../security/auth-rate-limiting.md`.
 
-Pre-deploy (before `deploy-release.sh`), on the server:
+Pre-deploy (before `deploy-release.sh`), on the server: exact commands in `reports/auth-rate-limit.md` "Server steps" (order: .env, Celery unit, sudoers, script copy, nginx, release, purge cron). Summary:
 1. **`.env`: add `REDIS_CACHE_URL=redis://localhost:6379/1`** (a different Redis database number from `CELERY_BROKER_URL`, which uses `/0`). Production now refuses to start without it, and `deploy-release.sh` checks for it in its preflight.
 2. Install the Celery systemd unit once (`deploy/epk-celery.service`, sudo steps in the report). `deploy-release.sh` now restarts it with `systemctl` and aborts early if the unit is missing.
 3. `manage.py check_duplicates` (now also lists phones shared by several login users, as a warning).
-3b. nginx: Cloudflare real-IP snippet (`deploy/nginx/snippets/cloudflare-realip.conf`) included in the gunicorn vhosts, `nginx -t`, reload; verify the last IP in Auth lockouts is yours (`reports/auth-rate-limit.md` A2).
+3b. nginx: Cloudflare real-IP snippet (`deploy/nginx/snippets/cloudflare-realip.conf`) included in the gunicorn vhosts, `nginx -t`, reload; verify the last IP in Auth lockouts is yours (`reports/auth-rate-limit.md`, "Server steps", step 5).
 4. Frontend with the backend in the same window (login accepts email or phone; 429 messages).
 
 axes is no longer used (account lockout is `accounts.lockout`); its old tables stay in the database untouched.
