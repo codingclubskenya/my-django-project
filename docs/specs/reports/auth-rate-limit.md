@@ -173,6 +173,9 @@ cd $APP && DJANGO_SETTINGS_MODULE=core.settings_production venv/bin/python manag
 ```
 Rollback: `crontab ~/crontab.bak-<date>`.
 
+**Incident 2026-11-19 (done, recorded so it is not repeated).** A 28-day-old hand-started gunicorn (PIDs 2533281 to 2533284, bound to a relative `epk.sock`, from login session 1202) was still running next to `gunicorn.service`. It served nothing, but it was stopped with a warm `SIGTERM` and **gunicorn unlinks its socket path on exit, and that path is the live service's socket**: `epk.sock` vanished and the API answered 502 from 12:46:29 until 12:47:15 (about 45 s). Recovery without sudo: `SIGKILL` of the live master so systemd's `Restart=on-failure` recreated the socket (new master 1910741, NRestarts=1, same commit `0a9bfd6`, healthz 200 on api, apex and erp). Rule: never stop a gunicorn that shares a bind path with a running one without restarting the live service straight after (`sudo systemctl restart gunicorn`), ideally in a quiet window. The stale process is gone, so this cannot recur from it.
+Side effect: the restart re-read `.env`, so the currently deployed code now uses Redis database 1 for its cache (it reads `REDIS_CACHE_URL` when set); anonymous API calls still answer normally.
+
 **Cleanup worth doing (separate from this release, your call).** `epk.service` is enabled but inactive while `gunicorn.service` serves; after a reboot both could start and fight over `epk.sock`. `systemctl cat gunicorn epk | grep -E 'ExecStart|bind'` to compare, then `sudo systemctl disable epk` for the one you do not use.
 
 **Order in one line:** 1 `.env` -> 2 unit -> 3 sudoers -> 4 script copy -> 5 nginx (verify real IP) -> 6 release + frontend -> 7 cron.
