@@ -153,6 +153,7 @@ Pre-deploy (before `deploy-release.sh`), on the server:
 1. **`.env`: add `REDIS_CACHE_URL=redis://localhost:6379/1`** (a different Redis database number from `CELERY_BROKER_URL`, which uses `/0`). Production now refuses to start without it, and `deploy-release.sh` checks for it in its preflight.
 2. Install the Celery systemd unit once (`deploy/epk-celery.service`, sudo steps in the report). `deploy-release.sh` now restarts it with `systemctl` and aborts early if the unit is missing.
 3. `manage.py check_duplicates` (now also lists phones shared by several login users, as a warning).
+3b. nginx: Cloudflare real-IP snippet (`deploy/nginx/snippets/cloudflare-realip.conf`) included in the gunicorn vhosts, `nginx -t`, reload; verify the last IP in Auth lockouts is yours (`reports/auth-rate-limit.md` A2).
 4. Frontend with the backend in the same window (login accepts email or phone; 429 messages).
 
 axes is no longer used (account lockout is `accounts.lockout`); its old tables stay in the database untouched.

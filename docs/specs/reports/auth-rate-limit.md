@@ -24,6 +24,8 @@ The plan kept axes with its database handler and said the 20-way parallel test w
 ## Found on the way
 - **Reset emails never reached accounts stored with capitals** (e.g. `Name@school.com`): allauth's reset form lower-cases the input and matches case-sensitively. The reset email is now built by the worker from the account found case-insensitively, so those users can reset.
 - The legacy `password-reset/request/` used to return the reset token in the response whenever `DEBUG` was on (dev only, `DEBUG=False` in production). It no longer does; with Celery the email is sent by the worker (console backend in dev).
+- **The audit log recorded the first `X-Forwarded-For` entry, which the client writes** (so it could be forged, and behind Cloudflare it would have been a Cloudflare address). Audit, lockout and throttles now use one function (`core/client_ip.py`): the trusted last hop, validated as an IP. Test: `ClientIpTests` (forged first hops, forged `CF-Connecting-IP`, rotating forged hops against the IP failure limit, garbage in the header).
+- M-Pesa callback (`shop/views.py`) already takes the last `X-Forwarded-For` entry, which is correct with the nginx change; before it, an IP allow-list there (if `MPESA_CALLBACK_ALLOWED_IPS` is set) would have seen Cloudflare addresses. Not changed.
 - Student login previously called `check_password` directly, so axes never saw it; it is now covered.
 
 ## Spec tests (accounts/test_auth_rate_limit.py)
@@ -41,7 +43,7 @@ The plan kept axes with its database handler and said the 20-way parallel test w
 Also covered: phone login (unique, shared, inactive/passwordless excluded), student PIN lock across IPs and across schools, `/admin/login/` lock (and shared with API), change-password limits and the temporary-password first-login flow (login, 403 `password_change_required`, change, access), removed route, unlock (tenant scope, admin only, audit rows, Django admin action), no passwords or identifiers in the security log, 30 users behind one IP, an IP spraying many accounts.
 
 ## Results
-- **Full suite on PostgreSQL 16 (throwaway container, removed afterwards): 814 tests, OK** (784 before; 30 new in `test_auth_rate_limit`).
+- **Full suite on PostgreSQL 16 (throwaway container, removed afterwards): 819 tests, OK** (784 before; 35 new in `test_auth_rate_limit`, including 5 client-IP tests added with the Cloudflare change).
 - After a final import tidy-up, the auth, password-reset, security, accounts and staff tests ran again on a fresh Postgres container: 131 tests, OK, including the 20-way parallel test (it is skipped on SQLite, which cannot row-lock).
 - On SQLite three `repair_sites_history` tests error (`TRUNCATE ... CASCADE`); they did so before this work and pass on Postgres.
 - Frontend: touched files parse with esbuild; not exercised in a browser this time.
@@ -65,6 +67,25 @@ All on the server unless stated. SSH needs your approval each time; none of this
 7. `manage.py check_duplicates` with production settings: read the new "login phone" lines (users sharing a number can only sign in by email).
 8. Release order stays: backend (`deploy-release.sh`), then frontend (`deploy-static.sh`, STAGE_ONLY first), same window. The old frontend still works (it sends `email`; the backend accepts both fields).
 
+**A2. Cloudflare real client IP (nginx; do it before the deploy, it is independent of the release)**
+The API is behind Cloudflare, so with `NUM_PROXIES=1` alone every request would look like a Cloudflare address and the per-IP limits, lock records and audit log would be wrong. Fix is in nginx (see "Client IP behind Cloudflare" in `docs/security/auth-rate-limiting.md`); Django keeps `NUM_PROXIES=1` and trusts no header itself. I could not reach the server while preparing this, so the live vhosts have **not** been inspected: step 1 does that.
+1. **Inspect (read-only):** `nginx -V 2>&1 | grep -o with-http_realip_module` must print the module name (it is built in by default; if empty, stop and tell me). List the vhosts that proxy to gunicorn: `sudo nginx -T 2>/dev/null | grep -nE "server_name|proxy_pass|X-Forwarded-For|real_ip"`. Each such `server { }` (api.codingclubskenya.com, and the apex codingclubskenya.com for `/api/` and `/admin/`) must contain `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`; add it if not.
+2. **Backup:** `sudo cp -a /etc/nginx /etc/nginx.bak-$(date +%Y%m%d-%H%M)`.
+3. **Patch:** install the snippet and include it in each of those server blocks:
+   ```
+   sudo mkdir -p /etc/nginx/snippets
+   sudo cp /home/devops/home/personal/personalweb/epk/deploy/nginx/snippets/cloudflare-realip.conf /etc/nginx/snippets/cloudflare-realip.conf
+   # in each server { } that proxies to gunicorn, next to the other includes:
+   #     include /etc/nginx/snippets/cloudflare-realip.conf;
+   ```
+   (or copy the file from your laptop; the checkout on the server only has it after the release is checked out.)
+4. **Test and reload (your sudo):** `sudo nginx -t` must say "syntax is ok / test is successful", then `sudo systemctl reload nginx`. If `nginx -t` fails, restore from the backup copy; nothing is reloaded until it passes.
+5. **Verify the real IP (wrong login from your laptop):** note your public IP (`curl -s https://ifconfig.me`). Send a wrong sign-in for a throwaway address (not a real account; it only creates a harmless counter row):
+   `curl -s -X POST https://api.codingclubskenya.com/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"nobody-test@example.com","password":"x"}'` (expect 401).
+   Then in Django admin > Accounts > Auth lockouts, the row's **last IP** must be your public IP, not a Cloudflare one (`104.16.*`, `172.64.*`, `162.158.*`, ...). After the release is live, the same address also appears in the `security.auth` log (`event=lockout|denied|ip_limit ... ip=`; those lines only appear on lockout or limit, so the Auth lockouts page is the quick check) and in new audit-log rows.
+6. **Verify spoofing is ignored (optional, from your laptop, straight to the origin so it is not via Cloudflare):** `curl -s --resolve api.codingclubskenya.com:443:213.199.41.219 -X POST https://api.codingclubskenya.com/api/auth/login/ -H 'CF-Connecting-IP: 1.2.3.4' -H 'X-Forwarded-For: 5.6.7.8' -H 'Content-Type: application/json' -d '{"email":"nobody-test2@example.com","password":"x"}'` then check that row's last IP: it must be your laptop's IP, never `1.2.3.4` or `5.6.7.8`.
+7. **Rollback:** restore `/etc/nginx` from the backup, `sudo nginx -t`, `sudo systemctl reload nginx`. Refresh of the ranges later: see the snippet header and the guide.
+
 **B. During**
 9. `deploy-release.sh <ref>` runs: preflight (checks `REDIS_CACHE_URL` and the unit), backup, migrate (`accounts.0026_authlockout`, additive), restart gunicorn, health, then stops the hand-started worker and restarts `epk-celery`, pings it. Reset emails queued in the minute between the gunicorn restart and the worker restart may be lost (old worker does not know the new task); users can simply ask again.
 
@@ -76,6 +97,7 @@ All on the server unless stated. SSH needs your approval each time; none of this
 14. Rollback: restore the backup and previous checkout as the script prints; the unit can stay (it just runs the old code). If Redis is the problem, production will not start: fix `REDIS_CACHE_URL` rather than reverting.
 
 ## Limits
+- The Cloudflare nginx change is prepared but **not applied or verified on the server** (ssh timed out); steps A2 above.
 - An account lock lets someone who knows an email lock that person out for 15 minutes (plan, section 4). Admins can unlock; it is never permanent.
 - `anon:` counter rows are kept until purged: run `purge_auth_lockouts` from cron (not scheduled; Celery beat is not running in production).
 - Sentry or log-based alerting on `security.auth` is not configured; the log lines are there to alert on.

@@ -33,9 +33,17 @@ How sign-in is protected, what an administrator sees, and which settings can be 
 | `API_PASSWORD_RESET_RATE` | 30/hour | reset request and confirm, per IP |
 | `API_CHANGE_PASSWORD_RATE` | 30/hour | change-password requests per user |
 | `REDIS_CACHE_URL` | required in production | e.g. `redis://localhost:6379/1`. Must be a different database number from `CELERY_BROKER_URL` (`/0`). Production refuses to start without it |
-| `NUM_PROXIES` | 1 | proxies in front of Django (nginx = 1). Wrong value lets clients spoof their IP |
+| `NUM_PROXIES` | 1 | proxies in front of Django that append to X-Forwarded-For: **nginx only = 1**, even behind Cloudflare (see "Client IP behind Cloudflare"). Wrong value lets clients spoof their IP or shows every visitor as one proxy |
 
 Change a value in the server `.env`, restart gunicorn. Test it first with the throwaway-container suite (`accounts.test_auth_rate_limit`).
+
+## Client IP behind Cloudflare
+Chain: visitor -> Cloudflare -> nginx -> gunicorn (unix socket). Cloudflare is not counted in `NUM_PROXIES`; nginx makes it invisible:
+- nginx's `real_ip` module (snippet `deploy/nginx/snippets/cloudflare-realip.conf`, installed as `/etc/nginx/snippets/cloudflare-realip.conf` and included in every `server { }` that proxies to gunicorn: `api.codingclubskenya.com` and the apex `codingclubskenya.com` for `/api/` and `/admin/`) replaces the connecting address with `CF-Connecting-IP`, **only** when the connection comes from one of Cloudflare's published ranges. Anyone else hitting the origin directly cannot choose their address by sending that header.
+- The vhost passes it on with `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, which appends the (now real) client address to whatever the client wrote. Django, with `NUM_PROXIES=1`, takes the **last** entry (`core/client_ip.py`) and ignores earlier ones and `CF-Connecting-IP`. The same address is used by the lockout, the failed-login IP limit, the DRF throttles and the audit log.
+- Without the snippet every request would look like it came from a Cloudflare address: per-IP limits would count all visitors together and the logs would be useless. Symptom: client IPs in the `security.auth` log or Auth lockouts "last IP" in `104.16.*`, `172.64.*`, `162.158.*` and similar.
+- **Refresh the ranges** when Cloudflare changes them (rare; check quarterly): `deploy/refresh-cloudflare-ips.sh > /tmp/cloudflare-realip.conf`, diff against the installed file, copy it into place, `sudo nginx -t`, `sudo systemctl reload nginx`.
+- Optional hardening: allow inbound 80/443 on the server only from Cloudflare's ranges, so the origin cannot be reached around Cloudflare at all.
 
 ## Not included
 OTP (no OTP exists yet). Design for it (5 attempts per challenge, 60 s resend cooldown, 5 per hour per account and IP) is in `docs/specs/reports/auth-rate-limit-plan.md`, section 5.
