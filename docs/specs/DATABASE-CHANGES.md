@@ -145,3 +145,14 @@ Rollback: restore the step 1 backup. The constraints and group rows are reversib
 Rehearsal (2026-11-17): restored `school_mgmt-20261116-173238.dump` (prod, 2026-11-16 17:32) into a throwaway Postgres 16 and ran steps 2 to 6 with `core.settings_production`. All passed; see `reports/phase-6.md`. That dump has 0 classes, 0 learner profiles and 5 users, so the data migrations had nothing to convert; they are covered by the migration tests on Postgres instead.
 
 Rehearsal 2 (2026-11-18): fresh dump `school_mgmt-20261118-081130.dump` (backup.sh on the server, 08:11), same steps plus Phase 6b, all passed; see `reports/phase-6b.md`. Run with `DB_*` variables (production settings ignore `DATABASE_URL`).
+
+## Release 3: authentication rate limiting (branch `feat/school-data-management`)
+New table `accounts_authlockout` (`accounts.0026_authlockout`). Additive only; no data changes. Details and the one-time server steps: `reports/auth-rate-limit.md`; administrator guide: `../security/auth-rate-limiting.md`.
+
+Pre-deploy (before `deploy-release.sh`), on the server:
+1. **`.env`: add `REDIS_CACHE_URL=redis://localhost:6379/1`** (a different Redis database number from `CELERY_BROKER_URL`, which uses `/0`). Production now refuses to start without it, and `deploy-release.sh` checks for it in its preflight.
+2. Install the Celery systemd unit once (`deploy/epk-celery.service`, sudo steps in the report). `deploy-release.sh` now restarts it with `systemctl` and aborts early if the unit is missing.
+3. `manage.py check_duplicates` (now also lists phones shared by several login users, as a warning).
+4. Frontend with the backend in the same window (login accepts email or phone; 429 messages).
+
+axes is no longer used (account lockout is `accounts.lockout`); its old tables stay in the database untouched.
