@@ -7,3 +7,6 @@ nginx/logs/
 nginx/letsencrypt/
 graphify-out/
 db.sqlite3
+
+# ui smoke venv
+scripts/.venv-smoke/

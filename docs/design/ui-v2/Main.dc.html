@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Admin dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700&amp;family=Poppins:wght@400;500;600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F5F6FA}
+a{color:#1E3A8A}a:hover{color:#0F1E3D}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; align-items: stretch; min-height: 1300px; background: #F5F6FA; color: #16213B; font-family: {{fontStack}}">
+<dc-import name="Sidebar" active="Dashboard" font="{{font}}" hint-size="272px,1300px"></dc-import>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px; padding: 20px 32px 48px; box-sizing: border-box">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #5B6683">
+<span>Home</span><span aria-hidden="true">/</span><span style="color: #16213B; font-weight: 600">Dashboard</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<label style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; background: #FFFFFF; border: 1px solid #E1E5EE; border-radius: 12px; min-width: 260px; box-sizing: border-box">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6683" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3"></path></svg>
+<input type="search" aria-label="Search learners, staff or pages" placeholder="Search learners, staff, pages…" style="border: 0; outline: 0; font: inherit; font-size: 14px; color: #16213B; background: transparent; flex: 1; min-width: 0">
+</label>
+<span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 12px; background: #FFF1E7; color: #9A3412; font-size: 14px; font-weight: 600">Term 3 · 2026</span>
+<button type="button" aria-label="Notifications" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #E1E5EE; background: #FFFFFF; display: grid; place-items: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16213B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a2 2 0 0 0 3.4 0"></path></svg>
+</button>
+</div>
+</header>
+
+<section style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em">Good evening, Admin</h1>
+<p style="margin: 0; font-size: 15px; color: #5B6683">[School name] · Thursday, 19 November 2026</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid #CDD3E1; background: #FFFFFF; color: #16213B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Record payment</button>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 0; background: #F26B1D; color: #0F1E3D; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F1E3D" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add learner</button>
+</div>
+</section>
+
+<section aria-label="Key figures" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 14px; color: #5B6683; font-weight: 500">{{k.label}}</span>
+<span style="width: 36px; height: 36px; border-radius: 10px; background: #EEF1F8; display: grid; place-items: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E3A8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{k.icon}}"></path></svg>
+</span>
+</div>
+<div style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em">{{k.value}}</div>
+<div style="height: 6px; border-radius: 6px; background: #EEF1F8; overflow: hidden"><div style="height: 6px; width: {{k.pct}}; background: #F26B1D; border-radius: 6px"></div></div>
+<span style="font-size: 13px; color: #5B6683">{{k.sub}}</span>
+</article>
+</sc-for>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px">
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Attendance this week</h2>
+<a href="#" style="font-size: 14px; font-weight: 600">Open attendance</a>
+</div>
+<div role="img" aria-label="Attendance by day: Monday 96 percent, Tuesday 95, Wednesday 93, Thursday 94, Friday not yet marked" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-items: end; height: 200px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; justify-content: flex-end">
+<span style="font-size: 13px; font-weight: 600; color: #16213B">{{d.v}}</span>
+<div style="width: 100%; max-width: 56px; height: {{d.h}}; border-radius: 10px 10px 4px 4px; background: {{d.c}}"></div>
+<span style="font-size: 13px; color: #5B6683">{{d.d}}</span>
+</div>
+</sc-for>
+</div>
+</article>
+
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Needs your attention</h2>
+<sc-for list="{{todos}}" as="t" hint-placeholder-count="4">
+<a href="#" style="display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 12px; background: #F7F8FC; text-decoration: none; color: #16213B; min-height: 44px; box-sizing: border-box">
+<span style="width: 10px; height: 10px; border-radius: 50%; background: {{t.dot}}; flex: none"></span>
+<span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+<span style="font-size: 14px; font-weight: 600">{{t.title}}</span>
+<span style="font-size: 13px; color: #5B6683">{{t.sub}}</span>
+</span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6683" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+</a>
+</sc-for>
+</article>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px">
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Fees collected by grade</h2>
+<span style="font-size: 13px; color: #5B6683">of this term's fees</span>
+</div>
+<sc-for list="{{fees}}" as="f" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 88px minmax(0, 1fr) 48px; align-items: center; gap: 12px">
+<span style="font-size: 14px; font-weight: 500">{{f.g}}</span>
+<div style="height: 10px; border-radius: 10px; background: #EEF1F8; overflow: hidden"><div style="height: 10px; width: {{f.p}}; background: #1E3A8A; border-radius: 10px"></div></div>
+<span style="font-size: 14px; font-weight: 600; text-align: right">{{f.p}}</span>
+</div>
+</sc-for>
+</article>
+
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Coming up</h2>
+<a href="#" style="font-size: 14px; font-weight: 600">Calendar</a>
+</div>
+<sc-for list="{{events}}" as="e" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 14px">
+<div style="width: 52px; height: 52px; border-radius: 12px; background: #0F1E3D; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none">
+<span style="font-size: 11px; font-weight: 600; color: #FFB27A; letter-spacing: 0.06em">{{e.m}}</span>
+<span style="font-size: 18px; font-weight: 700; line-height: 1">{{e.d}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 14px; font-weight: 600">{{e.t}}</span>
+<span style="font-size: 13px; color: #5B6683">{{e.s}}</span>
+</div>
+</div>
+</sc-for>
+</article>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","Plus Jakarta Sans","Nunito","Poppins","DM Sans","System"],"default":"Inter"},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const font = this.props.font ?? 'Inter';
+    const stacks = { 'Inter': "Inter, system-ui, sans-serif", 'Plus Jakarta Sans': "'Plus Jakarta Sans', system-ui, sans-serif", 'Nunito': "Nunito, system-ui, sans-serif", 'Poppins': "Poppins, system-ui, sans-serif", 'DM Sans': "'DM Sans', system-ui, sans-serif", 'System': "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" };
+    return {
+      font,
+      fontStack: stacks[font] || stacks['Inter'],
+      kpis: [
+        { label: 'Learners', value: '412', sub: '8 joined this term', pct: '100%', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8' },
+        { label: 'Staff', value: '41', sub: '4 have a login · 37 to invite', pct: '10%', icon: 'M3 7h18v13H3zM8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' },
+        { label: 'Fees collected', value: 'KES 2.48M', sub: '68% of this term’s fees', pct: '68%', icon: 'M3 6h15a3 3 0 0 1 3 3v9H3zM3 6V5a2 2 0 0 1 2-2h11M16 13h2' },
+        { label: 'Present today', value: '94%', sub: 'Lowest: Grade 10 Zion, 88%', pct: '94%', icon: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9' }
+      ],
+      days: [
+        { d: 'Mon', v: '96%', h: '150px', c: '#1E3A8A' },
+        { d: 'Tue', v: '95%', h: '144px', c: '#1E3A8A' },
+        { d: 'Wed', v: '93%', h: '132px', c: '#1E3A8A' },
+        { d: 'Thu', v: '94%', h: '138px', c: '#F26B1D' },
+        { d: 'Fri', v: '—', h: '8px', c: '#E1E5EE' }
+      ],
+      todos: [
+        { title: '37 staff have no login', sub: 'Invite them from Staff', dot: '#F26B1D' },
+        { title: '3 logins still on a temporary password', sub: 'Ask them to set their own', dot: '#F26B1D' },
+        { title: '23 learners owe fees for over 30 days', sub: 'Open fee balances', dot: '#1E3A8A' },
+        { title: 'Grade 10 Zion attendance below 90%', sub: 'This week', dot: '#1E3A8A' }
+      ],
+      fees: [
+        { g: 'Grade 7', p: '81%' }, { g: 'Grade 8', p: '74%' }, { g: 'Grade 9', p: '66%' }, { g: 'Grade 10', p: '59%' }, { g: 'Form 4', p: '71%' }
+      ],
+      events: [
+        { m: 'NOV', d: '24', t: 'End-of-term exams begin', s: 'All classes · 8:00' },
+        { m: 'NOV', d: '28', t: 'Parents’ meeting', s: 'School hall · 10:00' },
+        { m: 'DEC', d: '04', t: 'Closing day', s: 'Report forms go home' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

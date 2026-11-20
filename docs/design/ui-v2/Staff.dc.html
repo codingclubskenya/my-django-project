@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Staff</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700&amp;family=Poppins:wght@400;500;600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0;background:#F5F6FA}
+a{color:#1E3A8A}a:hover{color:#0F1E3D}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; align-items: stretch; min-height: 1300px; background: #F5F6FA; color: #16213B; font-family: {{fontStack}}">
+<dc-import name="Sidebar" active="Staff" font="{{font}}" hint-size="272px,1300px"></dc-import>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 22px; padding: 20px 32px 48px; box-sizing: border-box">
+
+<div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #5B6683">
+<span>Home</span><span aria-hidden="true">/</span><span>Staff</span><span aria-hidden="true">/</span><span style="color: #16213B; font-weight: 600">All staff</span>
+</div>
+
+<section style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em">Staff</h1>
+<p style="margin: 0; font-size: 15px; color: #5B6683">41 staff · 4 can sign in · 37 not invited yet</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 1px solid #CDD3E1; background: #FFFFFF; color: #16213B; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Import from Excel</button>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 0; background: #F26B1D; color: #0F1E3D; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F1E3D" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add staff</button>
+</div>
+</section>
+
+<section style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<div role="tablist" aria-label="Staff type" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 4px; background: #E9ECF4; border-radius: 14px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+<sc-if value="{{t.on}}" hint-placeholder-val="{{false}}">
+<button type="button" role="tab" aria-selected="true" onClick="{{t.pick}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: #FFFFFF; color: #0F1E3D; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">{{t.label}} <span style="color: #5B6683; font-weight: 500">{{t.n}}</span></button>
+</sc-if>
+<sc-if value="{{t.off}}" hint-placeholder-val="{{true}}">
+<button type="button" role="tab" aria-selected="false" onClick="{{t.pick}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: transparent; color: #3D4865; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">{{t.label}} <span style="color: #5B6683; font-weight: 500">{{t.n}}</span></button>
+</sc-if>
+</sc-for>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; background: #FFFFFF; border: 1px solid #E1E5EE; border-radius: 12px; min-width: 260px; box-sizing: border-box">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6683" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3"></path></svg>
+<input type="search" aria-label="Search staff" placeholder="Search name, phone, TSC no…" style="border: 0; outline: 0; font: inherit; font-size: 14px; color: #16213B; background: transparent; flex: 1; min-width: 0">
+</label>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 16px; overflow-x: auto">
+<table style="width: 100%; min-width: 980px; border-collapse: collapse; font-size: 14px">
+<thead>
+<tr style="background: #F7F8FC; text-align: left; color: #5B6683; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em">
+<th scope="col" style="padding: 14px 20px; font-weight: 600">Name</th>
+<th scope="col" style="padding: 14px 12px; font-weight: 600">Job title</th>
+<th scope="col" style="padding: 14px 12px; font-weight: 600">Phone</th>
+<th scope="col" style="padding: 14px 12px; font-weight: 600">Login</th>
+<th scope="col" style="padding: 14px 12px; font-weight: 600">Access roles</th>
+<th scope="col" style="padding: 14px 20px; font-weight: 600; text-align: right">Action</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+<tr style="border-top: 1px solid #EEF0F6">
+<td style="padding: 14px 20px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span aria-hidden="true" style="width: 38px; height: 38px; border-radius: 50%; background: {{r.avBg}}; color: #0F1E3D; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none">{{r.ini}}</span>
+<span style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600">{{r.name}}</span>
+<span style="font-size: 13px; color: #5B6683">{{r.no}}</span>
+</span>
+</div>
+</td>
+<td style="padding: 14px 12px; color: #3D4865">{{r.job}}</td>
+<td style="padding: 14px 12px; color: #3D4865; white-space: nowrap">{{r.phone}}</td>
+<td style="padding: 14px 12px">
+<sc-if value="{{r.hasLogin}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 3px 10px; border-radius: 999px; background: #E3F2EE; color: #0B5F55; font-size: 12px; font-weight: 600"><span style="width: 6px; height: 6px; border-radius: 50%; background: #0F766E"></span>Can sign in</span>
+<span style="font-size: 13px; color: #5B6683">{{r.last}}</span>
+</div>
+</sc-if>
+<sc-if value="{{r.noLogin}}" hint-placeholder-val="{{false}}">
+<span style="display: inline-flex; width: fit-content; padding: 3px 10px; border-radius: 999px; background: #EEF0F6; color: #3D4865; font-size: 12px; font-weight: 600">No login</span>
+</sc-if>
+</td>
+<td style="padding: 14px 12px">
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{r.roles}}" as="ro" hint-placeholder-count="1">
+<span style="padding: 3px 10px; border-radius: 999px; background: #E8ECF6; color: #1E2F5C; font-size: 12px; font-weight: 600">{{ro}}</span>
+</sc-for>
+<sc-if value="{{r.noRoles}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 13px; color: #5B6683">—</span>
+</sc-if>
+</div>
+</td>
+<td style="padding: 14px 20px; text-align: right">
+<sc-if value="{{r.hasLogin}}" hint-placeholder-val="{{true}}">
+<button type="button" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #CDD3E1; background: #FFFFFF; color: #16213B; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap">Access roles</button>
+</sc-if>
+<sc-if value="{{r.noLogin}}" hint-placeholder-val="{{false}}">
+<button type="button" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 0; background: #0F1E3D; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap">Invite to sign in</button>
+</sc-if>
+</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</section>
+
+<p style="margin: 0; font-size: 13px; color: #5B6683">Job title describes the work and grants no access. Access roles decide what someone can open; only the school admin can change them.</p>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","Plus Jakarta Sans","Nunito","Poppins","DM Sans","System"],"default":"Inter"},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const font = this.props.font ?? 'Inter';
+    const stacks = { 'Inter': "Inter, system-ui, sans-serif", 'Plus Jakarta Sans': "'Plus Jakarta Sans', system-ui, sans-serif", 'Nunito': "Nunito, system-ui, sans-serif", 'Poppins': "Poppins, system-ui, sans-serif", 'DM Sans': "'DM Sans', system-ui, sans-serif", 'System': "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" };
+    const tab = (this.state && this.state.tab) || 'All staff';
+    const tabs = [['All staff', '41'], ['Teaching', '24'], ['Non-teaching', '14'], ['Board & PA', '3']].map((t) => ({
+      label: t[0], n: t[1], on: t[0] === tab, off: t[0] !== tab, pick: () => this.setState({ tab: t[0] })
+    }));
+    const data = [
+      ['Grace Wanjiru', 'TSC 482117', 'Principal', '0712 345 678', true, 'Last sign-in today', ['Principal'], '#FFD8BF'],
+      ['Peter Otieno', 'STF 0012', 'Bursar', '0722 118 904', true, 'Last sign-in yesterday', ['Finance'], '#C9D6F2'],
+      ['Daniel Mwangi', 'STF 0019', 'Registrar', '0733 904 221', true, 'Last sign-in 3 days ago', ['Registrar'], '#FFD8BF'],
+      ['Faith Chebet', 'STF 0031', 'School nurse', '0701 556 330', true, 'Never signed in', ['Health'], '#C9D6F2'],
+      ['Mary Akinyi', 'TSC 509883', 'Teacher · Mathematics', '0745 210 877', false, '', [], '#FFD8BF'],
+      ['John Kamau', 'TSC 497120', 'Teacher · English', '0790 332 415', false, '', [], '#C9D6F2'],
+      ['Esther Njeri', 'STF 0044', 'Cook', '0757 661 093', false, '', [], '#FFD8BF']
+    ];
+    const rows = data.map((d) => ({
+      name: d[0], no: d[1], job: d[2], phone: d[3], hasLogin: d[4], noLogin: !d[4], last: d[5], roles: d[6], noRoles: d[6].length === 0, avBg: d[7],
+      ini: d[0].split(' ').map((p) => p[0]).join('')
+    }));
+    return { font, fontStack: stacks[font] || stacks['Inter'], tabs, rows };
+  }
+}
+</script>
+</body>
+</html>

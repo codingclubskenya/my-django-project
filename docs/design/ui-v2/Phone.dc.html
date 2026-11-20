@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Nunito:wght@400;600;700&amp;family=Poppins:wght@400;500;600&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1E3A8A}a:hover{color:#0F1E3D}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #F5F6FA; color: #16213B; font-family: {{fontStack}}">
+
+<div style="display: flex; flex-direction: column; gap: 16px; padding: 14px 16px">
+<header style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<button type="button" aria-label="Open menu" onClick="{{openMenu}}" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #E1E5EE; background: #FFFFFF; display: grid; place-items: center; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16213B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+</button>
+<span style="font-size: 16px; font-weight: 700">Attendance</span>
+<span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 50%; background: #FFB27A; color: #0F1E3D; display: grid; place-items: center; font-weight: 700; font-size: 14px">AD</span>
+</header>
+<span style="display: inline-flex; width: fit-content; align-items: center; height: 32px; padding: 0 12px; border-radius: 10px; background: #FFF1E7; color: #9A3412; font-size: 13px; font-weight: 600">Term 3 · 2026</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #5B6683">Present today</span>
+<span style="font-size: 24px; font-weight: 700">94%</span>
+</article>
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #5B6683">Not marked</span>
+<span style="font-size: 24px; font-weight: 700">2 classes</span>
+</article>
+</div>
+<article style="background: #FFFFFF; border: 1px solid #E6E9F1; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 15px; font-weight: 700">My classes today</span>
+<div style="display: flex; justify-content: space-between; font-size: 14px"><span>Grade 10 Zion</span><span style="color: #5B6683">Marked</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 14px"><span>Form 4 Everest</span><span style="color: #9A3412; font-weight: 600">Mark now</span></div>
+</article>
+</div>
+
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; inset: 0; display: flex">
+<div style="width: 300px; height: 844px; overflow-y: auto; background: #0F1E3D; flex: none">
+<dc-import name="Sidebar" active="Attendance" font="{{font}}" closeable="{{true}}" hint-size="272px,1300px"></dc-import>
+</div>
+<button type="button" aria-label="Close menu" onClick="{{closeMenu}}" style="flex: 1; border: 0; background: rgba(15, 30, 61, 0.55); cursor: pointer"></button>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"font":{"editor":"enum","options":["Inter","Plus Jakarta Sans","Nunito","Poppins","DM Sans","System"],"default":"Inter"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const font = this.props.font ?? 'Inter';
+    const stacks = { 'Inter': "Inter, system-ui, sans-serif", 'Plus Jakarta Sans': "'Plus Jakarta Sans', system-ui, sans-serif", 'Nunito': "Nunito, system-ui, sans-serif", 'Poppins': "Poppins, system-ui, sans-serif", 'DM Sans': "'DM Sans', system-ui, sans-serif", 'System': "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" };
+    const open = !(this.state && this.state.closed);
+    return {
+      font,
+      fontStack: stacks[font] || stacks['Inter'],
+      menuOpen: open,
+      openMenu: () => this.setState({ closed: false }),
+      closeMenu: () => this.setState({ closed: true })
+    };
+  }
+}
+</script>
+</body>
+</html>
