@@ -47,3 +47,10 @@
 ## Frontend rollback (2026-11-20)
 - Live `dist` had pointed at `releases/frontend-20261119-195620`; swapped back to `releases/frontend-20261119-130220` (`745e978`) by symlink rename (`ln -sfn ... dist.new && mv -T dist.new dist`). Backend untouched, no nginx reload.
 - Verified: erp serves `assets/index-CYs5nBfz.js`; `erp/healthz` 200, `erp/api/healthz` 200.
+
+## ui-v2 frontend deploy (2026-11-20)
+- Frontend `feat/school-data-management` fast-forwarded to `3ecac7a` (pushed), root pointer bumped in `be8aa85`. Backend untouched.
+- Staged with `STAGE_ONLY=1` (`releases/frontend-20261120-045608`, 2.1M, 5 files), then swapped with `USE_RELEASE=... deploy-static.sh frontend feat/school-data-management`. nginx needed no reload. Old releases pruned to 3.
+- **Rollback target: `releases/frontend-20261119-130220` (745e978, `index-CYs5nBfz.js`).** Command: `ln -sfn /home/devops/home/personal/personalweb/releases/frontend-20261119-130220/codingclubskenya/dist /home/devops/home/personal/personalweb/frontend-apk-web/codingclubskenya/dist.new && mv -T .../dist.new .../dist` (full paths as printed by the script).
+- Live bundle: `assets/index-DSkucpgn.js` + `assets/index-CeQ6h_8I.css`. Checks: `erp/healthz` 200, `erp/api/healthz` 200, `/`, `/login`, `/staff` 200, css 200. The bundle contains the new strings (`ui.nav.closed`, "Find a page", "Invite to sign in", "Access roles"), and not the import checkbox (not in this release).
+- **Not done on production:** signing in as admin and teacher. The project rule limits browser driving to local dev servers and dev seed accounts, and no production credentials are used. The same commit passed the local smoke run (admin, teacher, finance, HR; dashboard, Staff, sidebar, drawer open/close by button and backdrop, contrast, 44px targets, no horizontal scroll). Production click-through is left to the owner.
