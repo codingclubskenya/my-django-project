@@ -1,4 +1,12 @@
-# CI/CD plan (draft for approval, 2026-11-20)
+# CI/CD plan (2026-11-20)
+
+## Decisions and status (2026-11-20, later)
+- Approved: code-only backend rollback under the rule **"migrations additive only; removals ship in a later release"**; the narrow NOPASSWD sudoers line for restarting gunicorn only; CI first, CD after CI is green and approved.
+- **CI built** (workflow files committed and pushed): backend `e4ec5a1` (replaces the stale `backend-ci.yml`), frontend `b121f35`, distributor `67e7c2b` (on `feat/bookshop-rework`). Blocking: backend tests on `postgres:16` plus `check` and `makemigrations --check`, frontend `vite build`, distributor `next build`, ruff for syntax errors and undefined names only. Everything else (oxlint, eslint, wider ruff) is report-only.
+- **Blocker: the first runs on all three repos failed in 2 s with "The job was not started because your account is locked due to a billing issue."** That is the `fattym` GitHub account (billing/spending limit); nothing in the workflows is at fault. Fix it in GitHub (Settings, Billing and plans), then re-run. Until then the same steps were run locally: fresh venv from `requirements.txt` (`check` and `makemigrations --check` clean), full suite 868 tests OK on Postgres 16, `vite build` OK.
+- **All four repos are PUBLIC** (`gh repo view`: `fattym/epk`, `fattym/frontend-apk-web`, `fattym/disributor`, `codingclubskenya/my-django-project`), not private as assumed. Consequences: Actions minutes are free for public repos once billing is sorted; the deploy scripts, nginx configs and deploy logs in the root repo are world-readable; the Deploy workflow's `CI_READ_TOKEN` is not needed (public check runs are readable without a token). Please confirm the lock icon in GitHub; if you want them private, decide before CD is built.
+- Still open: CD build and the one-off server steps (section 4) wait for CI to be green and your go.
+
 
 Status: **discovery only.** Nothing has been built, nothing on the server was changed (read-only `ssh contabo` checks, listed in section 1). Build order: CI first; CD only after CI is green on all three repos.
 
