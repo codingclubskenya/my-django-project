@@ -49,6 +49,10 @@ Goal: no invented numbers. A failed request shows the error; an empty result sho
 5. Setting stock above zero on a product, variant or distributor product turns `backorders` off automatically. The toggle stays visible and the change is written to the ledger.
 6. Backorder products never block a sale. They record commit movements and on-hand may go below zero (stock fields become signed). APIs and the distributor UI show "N on backorder", never a negative number.
 
+7. `SHOP_STOCK_RESERVE_MINUTES` is an environment variable (default 30). It is read from Django settings or the environment because `core/settings.py` is outside this plan's allowed apps. Documented as a deploy note: `distributor-december-deploy-notes.md`.
+8. The public discovery feed (`discovery/serializers.py`, approved as the one extra file) shows sellable units, never negative, with `backorders` and `on_backorder`.
+9. `release_expired_reservations` runs from cron every 5 minutes (exact line in the deploy notes); new orders also sweep expired holds, so correctness does not depend on it.
+
 ### Design
 
 - `distributor.DistributorProduct`: `available_stock` becomes a signed integer (on hand, may be negative only through backorders); new `reserved_stock` (default 0). Sellable = `available_stock - reserved_stock`. API reads clamp `available_stock` at 0 and add read-only `on_backorder`. Writes cannot set `available_stock` below `reserved_stock`.

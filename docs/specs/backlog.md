@@ -49,3 +49,7 @@ Source: `reports/ui-smoke-2026-11-19.md` and its baseline/rerun reports (compare
   - Clipped tables on `/teachers`, `/enrollments`, `/schools`, `/shop/orders` (wrap them in a horizontal scroller or stack rows on phone).
 - Smaller, also old: React warning "`value` without `onChange`" on `/students`; the 402 on teacher `/courses` (an external resource, not investigated).
 - Harness note: `scripts/ui_smoke.py` re-runs all of this with one command (`python3 scripts/ui_smoke.py`); pages that fetch `/api/...` on their own origin only work because the script mirrors nginx's `/api` forwarding.
+
+## Clickable backorders switch (from distributor December, item 2)
+- The distributor products table shows "Backorders on" as a read-only label. Backorders turn off automatically when stock is set above zero (audited in `StockMovement`), but there is no way to turn them on or off by hand from the UI.
+- Needs: a writable `backorders` field on the distributor product endpoint (it lives on `shop.Product`, for every listing linked to the distributor product), permission to the owning distributor and platform admins only, a ledger `adjust` row for the change, and a switch in `distributor/app/dashboard/products/page.tsx` next to Available Stock. About 1 day with tests.
