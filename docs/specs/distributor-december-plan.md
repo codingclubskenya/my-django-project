@@ -40,12 +40,35 @@ Goal: no invented numbers. A failed request shows the error; an empty result sho
 
 ## 2. Stock reserve / commit / release (5 d)
 
-- `backend/distributor/models.py`: `StockMovement` (distributor product, delta, reason: reserve/commit/release/adjust, order ref, timestamp); `DistributorProduct.reserved_stock`. Migration in `distributor`.
-- `backend/shop/services/stock.py` (new): `reserve(order)`, `commit(order)`, `release(order)`, each inside `transaction.atomic()` with `select_for_update()` on the product rows, same pattern as `shop/services/payments.py`. Idempotent per order (a `stock_state` on `shop.Order`, migration in `shop`).
-- Hooks: reserve on order create (`shop/views.py`), commit on payment confirmation (`payments.py`), release on cancel, payment failure and a reservation expiry command `shop/management/commands/release_expired_reservations.py`.
-- `backend/carts/views.py:101`: stock 0 means out of stock (unless `backorders`), not unlimited. Behaviour change; called out in the PR.
-- Price: `shop.Product.price` = `DistributorProduct.unit_price` + markup, computed in one function used by cart and order totals. Unlinked products keep `ProductVariant.stock_quantity` (open question 1).
-- Tests (`shop/test_stock.py`, `distributor/tests.py`): oversell blocked, parallel reserve of the last unit (threaded `TransactionTestCase`), release on cancel, commit once on duplicate callback, tenant scoping unchanged.
+### Decisions (2026-11-20)
+
+1. A payment failure keeps the reservation until it expires (`SHOP_STOCK_RESERVE_MINUTES`, default 30), because the customer can retry the STK push. Stock is released at once only when the customer or an admin cancels.
+2. Money is never refused. A payment that arrives after the reservation expired tries to re-reserve; if stock is gone the order stays `paid`, is marked `shortfall` (no stock moved) and the platform admins are emailed immediately.
+3. Unlinked products use `ProductVariant.stock_quantity`. Linked products use `DistributorProduct.available_stock`, shared by all variants and school listings.
+4. Production read-only count (2026-11-20): 3,916 products; 3,783 unlinked with every variant at zero stock, 3 stocked, 130 with no variants; 2 linked; 133 distributor products, all stocked; 1 order pending payment. A data migration therefore sets `backorders=True` on products whose variants are all zero, so the cart fix does not make the catalogue unbuyable.
+5. Setting stock above zero on a product, variant or distributor product turns `backorders` off automatically. The toggle stays visible and the change is written to the ledger.
+6. Backorder products never block a sale. They record commit movements and on-hand may go below zero (stock fields become signed). APIs and the distributor UI show "N on backorder", never a negative number.
+
+### Design
+
+- `distributor.DistributorProduct`: `available_stock` becomes a signed integer (on hand, may be negative only through backorders); new `reserved_stock` (default 0). Sellable = `available_stock - reserved_stock`. API reads clamp `available_stock` at 0 and add read-only `on_backorder`. Writes cannot set `available_stock` below `reserved_stock`.
+- `shop.ProductVariant`: `stock_quantity` becomes signed; new `reserved_quantity` (default 0), used only for unlinked products.
+- `shop.Order`: `stock_state` (`none`, `reserved`, `committed`, `released`, `shortfall`) and `reserve_expires_at`, indexed with `status`.
+- `shop.StockMovement` (append-only ledger): exactly one of `distributor_product` or `variant` (check constraint); `kind` (`reserve`, `commit`, `release`, `restock`, `adjust`); `quantity`; `on_hand_after`; `reserved_after`; `order`; `order_item`; `created_by`; `note`; `created_at`. A partial unique constraint on `(order_item, kind)` for reserve, commit, release and restock makes retries idempotent.
+- `shop/services/stock.py`: `reserve`, `commit`, `release`, `restock`, `sellable_quantity`. Each locks the order row, then stock rows in primary-key order, then re-checks `stock_state`. Backorder lines are not reserved; their commit decrements on hand without touching reserved.
+- Hooks: both order serializers reserve inside `transaction.atomic` (400 naming the item when short); `_confirm` and `pay_fee_balance` commit; `refund` and a `PATCH` to `cancelled` release (reserved) or restock (committed and still only `paid`); `release_expired_reservations` command plus a sweep inside `reserve`.
+- `carts/views.py`: one `sellable_quantity` check; zero stock is "out of stock" unless backorders are on.
+- Shortfall email goes to active `SUPER_ADMIN` users, sent on commit of the transaction.
+
+### Migrations (`distributor` and `shop` only, generated with `makemigrations`)
+
+1. `distributor`: signed `available_stock`, `reserved_stock`.
+2. `shop` (depends on 1): signed `stock_quantity`, `reserved_quantity`, `Order.stock_state`, `Order.reserve_expires_at`, `StockMovement`.
+3. `shop` data migration: `backorders=True` where the product has variants and all are at zero stock and it is not linked.
+
+### Tests
+
+`shop/test_stock.py`, `distributor/tests.py`: oversell blocked; last unit under parallel threads on a throwaway `postgres:16` container (SQLite ignores row locks); duplicate callback commits once; expiry and sweep; late payment re-reserve and shortfall email; cancel releases, refund of a paid order restocks; backorder sale goes negative and is shown as on backorder; stock above zero turns backorders off with a ledger row; ledger sums match counts; tenant scoping and `test_payment_security.py` unchanged.
 
 ## 3. Fulfilment from paid orders + delivery status (8-10 d)
 
@@ -79,5 +102,4 @@ Goal: no invented numbers. A failed request shows the error; an empty result sho
 
 ## Open questions
 
-1. Products with no distributor link: keep `ProductVariant.stock_quantity` as their stock, or require a link?
-2. Should school bulk orders (`SchoolOrder`) later share `FulfilmentOrder`, or stay separate?
+1. Should school bulk orders (`SchoolOrder`) later share `FulfilmentOrder`, or stay separate?
