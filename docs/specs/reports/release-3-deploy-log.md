@@ -43,3 +43,7 @@
 - Add a `security.auth` logger to `LOGGING` in `settings_production.py` (file under `logs/` plus console) so lockout events are kept with a timestamp and logger name; today they only reach the journal.
 - `epk.service` is still enabled but inactive next to `gunicorn.service`; disable it (it shares the bind path and was involved in the incident above).
 - Parents/students imported with placeholder emails (no dot in the domain, unusable password) cannot sign in by email, phone or reset.
+
+## Frontend rollback (2026-11-20)
+- Live `dist` had pointed at `releases/frontend-20261119-195620`; swapped back to `releases/frontend-20261119-130220` (`745e978`) by symlink rename (`ln -sfn ... dist.new && mv -T dist.new dist`). Backend untouched, no nginx reload.
+- Verified: erp serves `assets/index-CYs5nBfz.js`; `erp/healthz` 200, `erp/api/healthz` 200.
